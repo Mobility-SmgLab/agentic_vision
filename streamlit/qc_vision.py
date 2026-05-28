@@ -666,11 +666,14 @@ img_root = Path(__file__).resolve().parent
 def _list_images_in(subdir: str):
     p = img_root / subdir
     if not p.is_dir():
+        p = Path.cwd() / subdir
+    if not p.is_dir():
         return []
     return sorted([str(x.name) for x in p.iterdir() if x.suffix.lower() in ('.jpg','.jpeg','.png')])
 
-left_choices = [f"images/{n}" for n in _list_images_in('images')]
-left_choices += [f"test_images/{n}" for n in _list_images_in('test_images')]
+left_choices = []
+for subdir in ('images', 'test_images'):
+    left_choices += [f"{subdir}/{n}" for n in _list_images_in(subdir)]
 
 with left_col:
     if not left_choices:
@@ -684,7 +687,9 @@ with left_col:
     image = None
 
     if selection:
-        sel_path = img_root / selection
+        sel_path = img_root / Path(selection)
+        if not sel_path.is_file():
+            sel_path = Path.cwd() / Path(selection)
         if sel_path.is_file():
             try:
                 img_bytes = sel_path.read_bytes()
