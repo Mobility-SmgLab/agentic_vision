@@ -687,17 +687,24 @@ with left_col:
     image = None
 
     if selection:
-        sel_path = img_root / Path(selection)
-        if not sel_path.is_file():
-            sel_path = Path.cwd() / Path(selection)
+        # Always resolve relative to the repo root
+        repo_root = Path(__file__).parent
+        
+        # Normalize selection
+        selection = selection.strip().lstrip("/")
+        
+        # Build full path
+        sel_path = repo_root / selection
+        
         if sel_path.is_file():
             try:
                 img_bytes = sel_path.read_bytes()
-                uploaded_name = sel_path.name
                 image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-                st.image(image, caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px", use_container_width=True)
+                st.image(image, caption=f"{selection} — {image.size[0]}×{image.size[1]}px", use_container_width=True)
             except Exception:
                 st.error(f"Could not open {selection}.")
+        else:
+            st.error(f"File not found: {sel_path}")
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     run = st.button("▶ Run Inspection", key="run_btn")
