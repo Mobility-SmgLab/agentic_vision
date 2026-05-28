@@ -65,4 +65,4 @@ In `streamlit_er16_image_first.py`:
 - **PCB/Label**
   - Verdict + summary stats
   - Annotated output image
-  - Defect report cards (with extra label fields like batch/lot/expiry/code when provided)
+  - Defect report cards (with extra label fields like batch/lot/expiry/code when provided)# agentic_vision
