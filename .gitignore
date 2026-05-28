@@ -1,0 +1,45 @@
+```gitignore id="n0lq2u"
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environments
+venv/
+.env/
+.venv/
+
+# Environment variables
+.env
+
+# Streamlit cache
+.streamlit/secrets.toml
+
+# Jupyter
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
+
+# VS Code
+.vscode/
+
+# Logs
+*.log
+
+# Build files
+dist/
+build/
+
+# AI model files
+*.pt
+*.pth
+*.bin
+*.onnx
+*.safetensors
+
+# Uploaded images
+uploads/
+temp/
+```
