@@ -3,4 +3,4 @@ services:
     name: streamlit-app
     env: python
     buildCommand: pip install -r requirements.txt
-    startCommand: streamlit run app.py --server.port $PORT
+    startCommand: streamlit run qc_vision --server.port $PORT
