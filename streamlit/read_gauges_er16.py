@@ -269,7 +269,7 @@ def render_labeled_image(image_path: Path, data: dict, output_path: Path) -> Non
 
 
 def main() -> int:
-    default_img = Path(__file__).resolve().parent / "images" / "WhatsApp Image 2026-04-14 at 8.44.02 PM.jpeg"
+    default_img = Path(__file__).resolve().parent / "static" / "WhatsApp Image 2026-04-14 at 8.44.02 PM.jpeg"
 
     p = argparse.ArgumentParser(description="Read analog gauges with Gemini Robotics-ER 1.6 preview.")
     p.add_argument(
