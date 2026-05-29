@@ -18,7 +18,53 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+# ── TEMPORARY DEBUG — remove after fixing ─────────────────────────────────────
 
+
+st.markdown("### 🛠 Path Debug")
+
+here = Path(__file__).resolve().parent
+st.code(f"""
+__file__           : {Path(__file__)}
+__file__ resolved  : {here}
+cwd                : {Path.cwd()}
+images/ exists     : {(here / 'images').exists()}
+images/ is_dir     : {(here / 'images').is_dir()}
+""")
+
+st.markdown("**Contents of `__file__` parent dir:**")
+try:
+    entries = sorted(here.iterdir())
+    st.code("\n".join(f"{'[DIR] ' if e.is_dir() else '      '}{e.name}" for e in entries))
+except Exception as ex:
+    st.error(f"Could not list dir: {ex}")
+
+img_dir = here / "images"
+if img_dir.is_dir():
+    st.markdown("**Contents of `images/`:**")
+    files = sorted(img_dir.iterdir())
+    if files:
+        st.code("\n".join(e.name for e in files))
+    else:
+        st.warning("images/ folder EXISTS but is EMPTY")
+else:
+    st.warning("images/ folder NOT FOUND next to qc_vision.py")
+
+    st.markdown("**Searching entire /opt/render tree for .jpg/.png (first 30):**")
+    try:
+        found = []
+        for root, dirs, files in os.walk("/opt/render"):
+            for f in files:
+                if f.lower().endswith((".jpg", ".jpeg", ".png")):
+                    found.append(os.path.join(root, f))
+            if len(found) >= 30:
+                break
+        st.code("\n".join(found) if found else "no images found anywhere under /opt/render")
+    except Exception as ex:
+        st.error(f"Walk error: {ex}")
+
+st.markdown("---")
+# ── END DEBUG ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
