@@ -746,39 +746,63 @@ st.markdown(f'<div class="sec-head">{mode_cfg["icon"]} {mode_cfg["title"]} — I
 
 left_col, right_col = st.columns([2, 2])
 
-# ── Image input ────────────────────────────────────────────────────────────────
-
-def _list_available_images() -> List[str]:
-    """Return sorted list of image filenames from the streamlit folder."""
-    here = Path(__file__).resolve().parent
-    images = sorted(
-        f.name for f in here.iterdir()
-        if f.suffix.lower() in (".jpg", ".jpeg", ".png")
-    )
-    return images
-
-available_images = _list_available_images()
+# Collect sample images using the robust multi-root finder
+sample_images = _list_sample_images()
 
 with left_col:
+    # ── File uploader (always visible; takes priority over sample selection) ──
+    uploaded_file = st.file_uploader(
+        "Upload an image",
+        type=["jpg", "jpeg", "png"],
+        help="Upload your own image. If sample images are also available below, the upload takes priority.",
+    )
+
+    # ── Sample image selector (shown only when samples exist) ─────────────────
+    selection: Optional[str] = None
+    if sample_images:
+        # Show friendly relative names in the dropdown but keep absolute paths as values
+        display_names = [Path(p).name for p in sample_images]
+        chosen_idx = st.selectbox(
+            "Or choose a sample image",
+            range(len(sample_images)),
+            format_func=lambda i: display_names[i],
+        )
+        selection = sample_images[chosen_idx]
+    else:
+        st.info("No sample images found in `images/` or `test_images/`. Upload one above.")
+
+    # ── Resolve final image bytes ──────────────────────────────────────────────
     img_bytes: Optional[bytes] = None
     uploaded_name: Optional[str] = None
     image: Optional[Image.Image] = None
 
-    if available_images:
-        selection = st.selectbox("Select an image", available_images, key="image_select")
-        if selection:
-            sel_path = Path(__file__).resolve().parent / selection
+    if uploaded_file is not None:
+        # Uploaded file takes priority
+        img_bytes = uploaded_file.read()
+        uploaded_name = uploaded_file.name
+        try:
+            image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            st.image(image,
+                     caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
+                     use_container_width=True)
+        except Exception as e:
+            st.error(f"Could not open uploaded image: {e}")
+            image = None
+
+    elif selection is not None:
+        sel_path = Path(selection)
+        if sel_path.is_file():
             try:
                 img_bytes = sel_path.read_bytes()
-                uploaded_name = selection
+                uploaded_name = sel_path.name
                 image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
                 st.image(image,
-                         caption=f"{selection} — {image.size[0]}×{image.size[1]}px",
+                         caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
                          use_container_width=True)
             except Exception as e:
-                st.error(f"Could not open {selection}: {e}")
-    else:
-        st.warning("No images found in the streamlit folder.")
+                st.error(f"Could not open {sel_path.name}: {e}")
+        else:
+            st.warning(f"Sample image not found on disk: `{selection}`")
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     run = st.button("▶ Run Inspection", key="run_btn")
