@@ -825,7 +825,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                     image_bytes = chosen.read_bytes()
                     selected_name = chosen.name
                     mime = "image/png" if chosen.suffix.lower() == ".png" else "image/jpeg"
-                    st.image(image_bytes, caption="Selected gallery image", use_container_width=True)
+                    st.image(image_bytes, caption="Selected gallery image", use_column_width=True)
 
             elif source == "Upload":
                 up = st.file_uploader(
@@ -837,7 +837,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                     image_bytes = up.read()
                     selected_name = up.name or "upload.jpg"
                     mime = up.type or "image/jpeg"
-                    st.image(image_bytes, caption="Uploaded image", use_container_width=True)
+                    st.image(image_bytes, caption="Uploaded image", use_column_width=True)
 
             else:
                 c1, c2 = st.columns([1, 2])
@@ -868,7 +868,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                         image_bytes = _fetch_live_frame(live_api_base, timeout_sec=live_timeout)
                         selected_name = "live_capture.jpg"
                         mime = "image/jpeg"
-                        st.image(image_bytes, caption="Live frame from Go2 API", use_container_width=True)
+                        st.image(image_bytes, caption="Live frame from Go2 API", use_column_width=True)
                     except Exception as e:
                         st.error("Live frame fetch failed: %s" % (e,))
 
@@ -976,7 +976,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                         if last_overlay_err:
                             st.error(f"Overlay render error: {last_overlay_err}")
                     else:
-                        st.image(last_overlay, caption="Annotated result", use_container_width=True)
+                        st.image(last_overlay, caption="Annotated result", use_column_width=True)
                         st.download_button(
                             "Download annotated PNG",
                             data=last_overlay,
