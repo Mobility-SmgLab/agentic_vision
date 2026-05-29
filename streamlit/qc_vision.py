@@ -746,26 +746,20 @@ st.markdown(f'<div class="sec-head">{mode_cfg["icon"]} {mode_cfg["title"]} — I
 
 left_col, right_col = st.columns([2, 2])
 
-# ── Sample image discovery helper ─────────────────────────────────────────────
-def _list_sample_images() -> List[str]:
-    here = Path(__file__).resolve().parent
-    sample_paths: List[str] = []
-    for subdir in ("images", "test_images"):
-        image_dir = _find_images_dir(subdir)
-        if image_dir is not None:
-            sample_paths.extend(
-                str(p) for p in sorted(image_dir.iterdir())
-                if p.is_file() and p.suffix.lower() in (".jpg", ".jpeg", ".png")
-            )
-    if not sample_paths:
-        sample_paths = [
-            str(p) for p in sorted(here.iterdir())
-            if p.is_file() and p.suffix.lower() in (".jpg", ".jpeg", ".png")
-        ]
-    return sample_paths
+# Collect sample images from the streamlit folder and common subfolders
+img_root = Path(__file__).resolve().parent
+def _collect_images_from_roots(root: Path) -> List[str]:
+    imgs: List[str] = []
+    roots = [root, root / "images", root / "test_images"]
+    for r in roots:
+        if not r.exists():
+            continue
+        for f in sorted(r.iterdir()):
+            if f.is_file() and f.suffix.lower() in (".jpg", ".jpeg", ".png"):
+                imgs.append(str(f.resolve()))
+    return imgs
 
-# Collect sample images using the robust multi-root finder
-sample_images = _list_sample_images()
+sample_images = _collect_images_from_roots(img_root)
 
 with left_col:
     # ── File uploader (always visible; takes priority over sample selection) ──
@@ -778,10 +772,8 @@ with left_col:
     # ── Sample image selector (shown only when samples exist) ─────────────────
     selection: Optional[str] = None
     if sample_images:
-        display_names = [
-            str(Path(p).relative_to(Path(__file__).resolve().parent))
-            for p in sample_images
-        ]
+        # Show friendly relative names in the dropdown but keep absolute paths as values
+        display_names = [Path(p).name for p in sample_images]
         chosen_idx = st.selectbox(
             "Or choose a sample image",
             range(len(sample_images)),
@@ -789,13 +781,12 @@ with left_col:
         )
         selection = sample_images[chosen_idx]
     else:
-        st.info("No sample images found in the streamlit folder or images/test_images subfolders.")
+        st.info("No sample images found in `images/` or `test_images/`. Upload one above.")
 
     # ── Resolve final image bytes ──────────────────────────────────────────────
     img_bytes: Optional[bytes] = None
     uploaded_name: Optional[str] = None
     image: Optional[Image.Image] = None
-    img_root = Path(__file__).resolve().parent
 
     if uploaded_file is not None:
         # Uploaded file takes priority
@@ -811,39 +802,31 @@ with left_col:
             image = None
 
     if selection:
+        # selection is an absolute path (collected from streamlit folder roots)
         sel_path = Path(selection)
 
+        # Fallback: if somehow selection is not a file, try common locations
         if not sel_path.is_file():
-            sel_path = img_root / Path(selection)
+            alt = img_root / Path(selection).name
+            if alt.is_file():
+                sel_path = alt
+            else:
+                alt2 = Path.cwd() / Path(selection).name
+                if alt2.is_file():
+                    sel_path = alt2
+
         if not sel_path.is_file():
-            sel_path = Path.cwd() / Path(selection)
-
-        st.write("Selected path:", sel_path)
-        st.write("Exists:", sel_path.exists())
-
-        if sel_path.is_file():
+            st.warning(f"Sample image not found on disk: `{selection}`")
+        else:
             try:
                 img_bytes = sel_path.read_bytes()
-
-                st.write("Bytes loaded:", len(img_bytes))
-
                 uploaded_name = sel_path.name
-
-                image = Image.open(io.BytesIO(img_bytes))
-
-                st.write("PIL format:", image.format)
-                st.write("PIL mode:", image.mode)
-
-                image = image.convert("RGB")
-
-                st.image(
-                    image,
-                    caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
-                    use_container_width=True
-                )
-
+                image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                st.image(image,
+                         caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
+                         use_container_width=True)
             except Exception as e:
-                st.error(f"Could not open {selection}")
+                st.error(f"Could not open {sel_path}")
                 st.exception(e)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
