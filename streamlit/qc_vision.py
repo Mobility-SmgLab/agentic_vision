@@ -684,7 +684,7 @@ with st.sidebar:
     with st.expander("🗂 Path debug", expanded=False):
         st.caption(f"**`__file__`**: `{Path(__file__).resolve()}`")
         st.caption(f"**cwd**: `{Path.cwd()}`")
-        for sd in ("images", "test_images"):
+        for sd in ("images"):
             found = _find_images_dir(sd)
             st.caption(f"**{sd}/**: `{found or 'not found'}`")
 
@@ -746,6 +746,24 @@ st.markdown(f'<div class="sec-head">{mode_cfg["icon"]} {mode_cfg["title"]} — I
 
 left_col, right_col = st.columns([2, 2])
 
+# ── Sample image discovery helper ─────────────────────────────────────────────
+def _list_sample_images() -> List[str]:
+    here = Path(__file__).resolve().parent
+    sample_paths: List[str] = []
+    for subdir in ("images", "test_images"):
+        image_dir = _find_images_dir(subdir)
+        if image_dir is not None:
+            sample_paths.extend(
+                str(p) for p in sorted(image_dir.iterdir())
+                if p.is_file() and p.suffix.lower() in (".jpg", ".jpeg", ".png")
+            )
+    if not sample_paths:
+        sample_paths = [
+            str(p) for p in sorted(here.iterdir())
+            if p.is_file() and p.suffix.lower() in (".jpg", ".jpeg", ".png")
+        ]
+    return sample_paths
+
 # Collect sample images using the robust multi-root finder
 sample_images = _list_sample_images()
 
@@ -760,8 +778,10 @@ with left_col:
     # ── Sample image selector (shown only when samples exist) ─────────────────
     selection: Optional[str] = None
     if sample_images:
-        # Show friendly relative names in the dropdown but keep absolute paths as values
-        display_names = [Path(p).name for p in sample_images]
+        display_names = [
+            str(Path(p).relative_to(Path(__file__).resolve().parent))
+            for p in sample_images
+        ]
         chosen_idx = st.selectbox(
             "Or choose a sample image",
             range(len(sample_images)),
@@ -769,7 +789,7 @@ with left_col:
         )
         selection = sample_images[chosen_idx]
     else:
-        st.info("No sample images found in `images/` or `test_images/`. Upload one above.")
+        st.info("No sample images found in the streamlit folder or images/test_images subfolders.")
 
     # ── Resolve final image bytes ──────────────────────────────────────────────
     img_bytes: Optional[bytes] = None
@@ -791,8 +811,10 @@ with left_col:
             image = None
 
     if selection:
-        sel_path = img_root / Path(selection)
+        sel_path = Path(selection)
 
+        if not sel_path.is_file():
+            sel_path = img_root / Path(selection)
         if not sel_path.is_file():
             sel_path = Path.cwd() / Path(selection)
 
