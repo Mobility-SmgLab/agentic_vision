@@ -825,7 +825,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                     image_bytes = chosen.read_bytes()
                     selected_name = chosen.name
                     mime = "image/png" if chosen.suffix.lower() == ".png" else "image/jpeg"
-                    st.image(image_bytes, caption="Selected gallery image", use_column_width=True)
+                    st.image(image_bytes, caption="Selected gallery image", width=700)
 
             elif source == "Upload":
                 up = st.file_uploader(
@@ -837,7 +837,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                     image_bytes = up.read()
                     selected_name = up.name or "upload.jpg"
                     mime = up.type or "image/jpeg"
-                    st.image(image_bytes, caption="Uploaded image", use_column_width=True)
+                    st.image(image_bytes, caption="Uploaded image", width=700)
 
             else:
                 c1, c2 = st.columns([1, 2])
@@ -845,13 +845,11 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                     fetch_live = st.button(
                         "Fetch Live Frame",
                         type="primary",
-                        use_container_width=True,
                         key=f"{key_prefix}fetch_live",
                     )
                 with c2:
                     health_clicked = st.button(
                         "Check Capture API",
-                        use_container_width=True,
                         key=f"{key_prefix}health",
                     )
 
@@ -868,7 +866,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                         image_bytes = _fetch_live_frame(live_api_base, timeout_sec=live_timeout)
                         selected_name = "live_capture.jpg"
                         mime = "image/jpeg"
-                        st.image(image_bytes, caption="Live frame from Go2 API", use_column_width=True)
+                        st.image(image_bytes, caption="Live frame from Go2 API", width=700)
                     except Exception as e:
                         st.error("Live frame fetch failed: %s" % (e,))
 
@@ -876,10 +874,10 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
             st.caption("Edit only if you need a custom task; defaults are tuned for Go2 gauge reading with code execution.")
             colp1, colp2 = st.columns([1, 1])
             with colp1:
-                if st.button("Use Gauge JSON Prompt", use_container_width=True, key=f"{key_prefix}use_gauge_prompt"):
+                if st.button("Use Gauge JSON Prompt", key=f"{key_prefix}use_gauge_prompt"):
                     st.session_state[prompt_key] = DEFAULT_PROMPT_GAUGE_JSON
             with colp2:
-                if st.button("Use Scene Prompt", use_container_width=True, key=f"{key_prefix}use_scene_prompt"):
+                if st.button("Use Scene Prompt", key=f"{key_prefix}use_scene_prompt"):
                     st.session_state[prompt_key] = DEFAULT_PROMPT_SCENE
 
             prompt = st.text_area(
@@ -889,7 +887,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                 help="Default matches booth demo: Go2 inspection + zoom/crop steps before JSON. Full-res image is sent to Gemini.",
             )
 
-        run = st.button("Run Gemini", type="primary", use_container_width=True, key=f"{key_prefix}run")
+        run = st.button("Run Gemini", type="primary", key=f"{key_prefix}run")
         if run:
             if not image_bytes:
                 st.error("Select/upload/fetch an image first.")
@@ -976,7 +974,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                         if last_overlay_err:
                             st.error(f"Overlay render error: {last_overlay_err}")
                     else:
-                        st.image(last_overlay, caption="Annotated result", use_column_width=True)
+                        st.image(last_overlay, caption="Annotated result", width=700)
                         st.download_button(
                             "Download annotated PNG",
                             data=last_overlay,

@@ -18,54 +18,7 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-# ── TEMPORARY DEBUG — remove after fixing ─────────────────────────────────────
 
-
-st.markdown("### 🛠 Path Debug")
-
-# here = Path(__file__).resolve().parent
-here = Path(os.path.abspath(os.path.dirname(__file__)))
-st.code(f"""
-__file__           : {Path(__file__)}
-__file__ resolved  : {here}
-cwd                : {Path.cwd()}
-static/ exists     : {(here / 'static').exists()}
-static/ is_dir     : {(here / 'static').is_dir()}
-""")
-
-st.markdown("**Contents of `__file__` parent dir:**")
-try:
-    entries = sorted(here.iterdir())
-    st.code("\n".join(f"{'[DIR] ' if e.is_dir() else '      '}{e.name}" for e in entries))
-except Exception as ex:
-    st.error(f"Could not list dir: {ex}")
-
-img_dir = here / "static"
-if img_dir.is_dir():
-    st.markdown("**Contents of `static/`:**")
-    files = sorted(img_dir.iterdir())
-    if files:
-        st.code("\n".join(e.name for e in files))
-    else:
-        st.warning("static/ folder EXISTS but is EMPTY")
-else:
-    st.warning("static  / folder NOT FOUND next to qc_vision.py")
-
-    st.markdown("**Searching entire /opt/render tree for .jpg/.png (first 30):**")
-    try:
-        found = []
-        for root, dirs, files in os.walk("/opt/render"):
-            for f in files:
-                if f.lower().endswith((".jpg", ".jpeg", ".png", '.JPG', '.JPEG', '.PNG')):
-                    found.append(os.path.join(root, f))
-            if len(found) >= 30:
-                break
-        st.code("\n".join(found) if found else "no images found anywhere under /opt/render")
-    except Exception as ex:
-        st.error(f"Walk error: {ex}")
-
-st.markdown("---")
-# ── END DEBUG ──────────────────────────────────────────────────────────────────
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=DM+Mono:wght@400;500&family=Syne:wght@700;800&display=swap');
@@ -802,7 +755,7 @@ with left_col:
                 image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
                 st.image(image,
                          caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
-                         use_column_width=True)
+                         width=700)
             except Exception as e:
                 st.error(f"Could not open {sel_path}")
                 st.exception(e)
@@ -876,7 +829,7 @@ if run and image:
                 with ic:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
                     annotated = draw_gauge_annotations(image, parsed)
-                    st.image(annotated, use_column_width=True)
+                    st.image(annotated, width=700)
 
                     buf = io.BytesIO()
                     annotated.save(buf, format="PNG")
@@ -929,7 +882,7 @@ if run and image:
             try:
                 with right_col:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
-                    st.image(draw_qc_annotations(image, data), use_column_width=True)
+                    st.image(draw_qc_annotations(image, data), width=700)
                     if "summary" in data:
                         st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
                         padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
@@ -957,7 +910,7 @@ if run and image:
                 ic, cc = st.columns([3, 2])
                 with ic:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
-                    st.image(draw_qc_annotations(image, data), use_column_width=True)
+                    st.image(draw_qc_annotations(image, data), width=700)
                     if "summary" in data:
                         st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
                         padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
