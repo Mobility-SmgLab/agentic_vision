@@ -55,7 +55,7 @@ else:
         found = []
         for root, dirs, files in os.walk("/opt/render"):
             for f in files:
-                if f.lower().endswith((".jpg", ".jpeg", ".png")):
+                if f.lower().endswith((".jpg", ".jpeg", ".png", '.JPG', '.JPEG', '.PNG')):
                     found.append(os.path.join(root, f))
             if len(found) >= 30:
                 break
@@ -775,6 +775,7 @@ with left_col:
     img_bytes: Optional[bytes] = None
     uploaded_name: Optional[str] = None
     image: Optional[Image.Image] = None
+    img_root = Path(__file__).resolve().parent
 
     if uploaded_file is not None:
         # Uploaded file takes priority
@@ -789,20 +790,39 @@ with left_col:
             st.error(f"Could not open uploaded image: {e}")
             image = None
 
-    elif selection is not None:
-        sel_path = Path(selection)
+    if selection:
+        sel_path = img_root / Path(selection)
+
+        if not sel_path.is_file():
+            sel_path = Path.cwd() / Path(selection)
+
+        st.write("Selected path:", sel_path)
+        st.write("Exists:", sel_path.exists())
+
         if sel_path.is_file():
             try:
                 img_bytes = sel_path.read_bytes()
+
+                st.write("Bytes loaded:", len(img_bytes))
+
                 uploaded_name = sel_path.name
-                image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-                st.image(image,
-                         caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
-                         use_container_width=True)
+
+                image = Image.open(io.BytesIO(img_bytes))
+
+                st.write("PIL format:", image.format)
+                st.write("PIL mode:", image.mode)
+
+                image = image.convert("RGB")
+
+                st.image(
+                    image,
+                    caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
+                    use_container_width=True
+                )
+
             except Exception as e:
-                st.error(f"Could not open {sel_path.name}: {e}")
-        else:
-            st.warning(f"Sample image not found on disk: `{selection}`")
+                st.error(f"Could not open {selection}")
+                st.exception(e)
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     run = st.button("▶ Run Inspection", key="run_btn")
