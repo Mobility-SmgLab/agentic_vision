@@ -751,7 +751,7 @@ left_col, right_col = st.columns([2, 2])
 img_root = Path(__file__).resolve().parent
 def _collect_images_from_roots(root: Path) -> List[str]:
     imgs: List[str] = []
-    roots = [root, root / "images", root / "test_images"]
+    roots = [root, root / "images"]
     for r in roots:
         if not r.exists():
             continue
@@ -782,7 +782,7 @@ with left_col:
         )
         selection = sample_images[chosen_idx]
     else:
-        st.info("No sample images found in `images/` or `test_images/`. Upload one above.")
+        st.info("No sample images found in `images/`. Upload one above.")
 
     # ── Resolve final image bytes ──────────────────────────────────────────────
     img_bytes: Optional[bytes] = None
