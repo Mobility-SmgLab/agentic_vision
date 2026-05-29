@@ -797,7 +797,7 @@ with left_col:
             image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
             st.image(image,
                      caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
-                     use_container_width=True)
+                     use_column_width=True)
         except Exception as e:
             st.error(f"Could not open uploaded image: {e}")
             image = None
@@ -825,7 +825,7 @@ with left_col:
                 image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
                 st.image(image,
                          caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
-                         use_container_width=True)
+                         use_column_width=True)
             except Exception as e:
                 st.error(f"Could not open {sel_path}")
                 st.exception(e)
@@ -899,7 +899,7 @@ if run and image:
                 with ic:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
                     annotated = draw_gauge_annotations(image, parsed)
-                    st.image(annotated, use_container_width=True)
+                    st.image(annotated, use_column_width=True)
 
                     buf = io.BytesIO()
                     annotated.save(buf, format="PNG")
@@ -952,7 +952,7 @@ if run and image:
             try:
                 with right_col:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
-                    st.image(draw_qc_annotations(image, data), use_container_width=True)
+                    st.image(draw_qc_annotations(image, data), use_column_width=True)
                     if "summary" in data:
                         st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
                         padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
@@ -980,7 +980,7 @@ if run and image:
                 ic, cc = st.columns([3, 2])
                 with ic:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
-                    st.image(draw_qc_annotations(image, data), use_container_width=True)
+                    st.image(draw_qc_annotations(image, data), use_column_width=True)
                     if "summary" in data:
                         st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
                         padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
