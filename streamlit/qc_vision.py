@@ -246,16 +246,6 @@ def _find_images_dir(subdir: str) -> Optional[Path]:
     return None
 
 
-def _list_sample_images() -> List[str]:
-    """Return absolute paths for all sample images in streamlit/images/."""
-    paths: List[str] = []
-    found = _find_images_dir("images")   # only look in images/, not test_images/
-    if found:
-        for f in sorted(found.iterdir()):
-            if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
-                paths.append(str(f.resolve()))
-    return paths
-
 
 # ── JSON / drawing helpers ─────────────────────────────────────────────────────
 def _extract_first_json_object(text: str) -> Optional[Dict]:
@@ -756,38 +746,37 @@ st.markdown(f'<div class="sec-head">{mode_cfg["icon"]} {mode_cfg["title"]} — I
 
 left_col, right_col = st.columns([2, 2])
 
-# Collect sample images using the robust multi-root finder
+# ── Image input ────────────────────────────────────────────────────────────────
+IMAGES_DIR = Path(__file__).resolve().parent / "images"
+
+def _list_sample_images() -> List[str]:
+    """Return sorted list of image filenames from the images/ folder."""
+    if not IMAGES_DIR.is_dir():
+        return []
+    return sorted(
+        f.name for f in IMAGES_DIR.iterdir()
+        if f.suffix.lower() in (".jpg", ".jpeg", ".png")
+    )
+
 sample_images = _list_sample_images()
 
 with left_col:
-    # ── File uploader (always visible; takes priority over sample selection) ──
     uploaded_file = st.file_uploader(
         "Upload an image",
         type=["jpg", "jpeg", "png"],
-        help="Upload your own image. If sample images are also available below, the upload takes priority.",
     )
 
-    # ── Sample image selector (shown only when samples exist) ─────────────────
     selection: Optional[str] = None
     if sample_images:
-        # Show friendly relative names in the dropdown but keep absolute paths as values
-        display_names = [Path(p).name for p in sample_images]
-        chosen_idx = st.selectbox(
-            "Or choose a sample image",
-            range(len(sample_images)),
-            format_func=lambda i: display_names[i],
-        )
-        selection = sample_images[chosen_idx]
+        selection = st.selectbox("Or choose a sample image", sample_images)
     else:
-        st.info("No sample images found in `images/` or `test_images/`. Upload one above.")
+        st.warning("No sample images found in images/")
 
-    # ── Resolve final image bytes ──────────────────────────────────────────────
     img_bytes: Optional[bytes] = None
     uploaded_name: Optional[str] = None
     image: Optional[Image.Image] = None
 
     if uploaded_file is not None:
-        # Uploaded file takes priority
         img_bytes = uploaded_file.read()
         uploaded_name = uploaded_file.name
         try:
@@ -800,19 +789,16 @@ with left_col:
             image = None
 
     elif selection is not None:
-        sel_path = Path(selection)
-        if sel_path.is_file():
-            try:
-                img_bytes = sel_path.read_bytes()
-                uploaded_name = sel_path.name
-                image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-                st.image(image,
-                         caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
-                         use_container_width=True)
-            except Exception as e:
-                st.error(f"Could not open {sel_path.name}: {e}")
-        else:
-            st.warning(f"Sample image not found on disk: `{selection}`")
+        sel_path = IMAGES_DIR / selection   # ← always anchored to correct dir
+        try:
+            img_bytes = sel_path.read_bytes()
+            uploaded_name = selection
+            image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            st.image(image,
+                     caption=f"{selection} — {image.size[0]}×{image.size[1]}px",
+                     use_container_width=True)
+        except Exception as e:
+            st.error(f"Could not open {selection}: {e}")
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     run = st.button("▶ Run Inspection", key="run_btn")
