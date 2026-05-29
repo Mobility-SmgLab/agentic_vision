@@ -8,7 +8,7 @@ from google.genai import types
 
 try:
     from dotenv import load_dotenv
-except Exception:  # pragma: no cover
+except Exception:
     load_dotenv = None
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -18,7 +18,6 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
-  
 
 st.markdown("""
 <style>
@@ -34,7 +33,6 @@ st.markdown("""
 *{box-sizing:border-box;}
 html,body,.stApp{background:var(--bg)!important;color:var(--text)!important;font-family:var(--sans)!important;}
 .block-container{
-  /* Full-bleed layout: use the full page width */
   padding:0 1.25rem 2.25rem!important;
   max-width:100%!important;
 }
@@ -138,7 +136,6 @@ div[data-testid="stFileUploader"]{background:var(--card)!important;border:2px da
 .conf-bar-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent),var(--accent2));}
 .conf-pct{font-family:var(--mono);font-size:9px;color:var(--muted);min-width:28px;}
 
-/* Gauge-specific cards */
 .gauge-card{background:var(--card);border:1.5px solid var(--border);border-radius:10px;
   padding:14px 16px;margin-bottom:10px;border-left:4px solid #2563eb;
   box-shadow:0 1px 3px rgba(0,0,0,.04);transition:box-shadow .15s;}
@@ -160,10 +157,10 @@ div[data-testid="stExpander"]{background:var(--card)!important;border:1.5px soli
 """, unsafe_allow_html=True)
 
 
+# ── Env loading ────────────────────────────────────────────────────────────────
 if load_dotenv is not None:
     load_dotenv(dotenv_path=Path(__file__).resolve().parent / ".env", override=False)
 else:
-    # Minimal .env reader fallback (KEY=VALUE lines).
     env_path = Path(__file__).resolve().parent / ".env"
     if env_path.is_file():
         try:
@@ -181,6 +178,7 @@ else:
 
 ENV_FILE_PATH = Path(__file__).resolve().parent / ".env"
 
+
 def _mask_key(k: str) -> str:
     k = (k or "").strip()
     if not k:
@@ -190,7 +188,41 @@ def _mask_key(k: str) -> str:
     return f"{k[:4]}…{k[-4:]}"
 
 
+# ── Robust image directory finder ─────────────────────────────────────────────
+def _find_images_dir(subdir: str) -> Optional[Path]:
+    """Search several candidate roots for an images subfolder.
 
+    On Render the working directory and __file__ parent can differ, and the
+    service root may live at /opt/render/project/src. We try all plausible
+    locations so sample images are found regardless of deployment environment.
+    """
+    candidates = [
+        Path(__file__).resolve().parent,           # beside app.py (most common)
+        Path(__file__).resolve().parent.parent,    # one level up
+        Path.cwd(),                                # CWD at runtime
+        Path("/opt/render/project/src"),           # Render's default root
+        Path("/app"),                              # common Docker root
+    ]
+    for root in candidates:
+        p = root / subdir
+        if p.is_dir():
+            return p
+    return None
+
+
+def _list_sample_images() -> List[str]:
+    """Return a list of absolute paths for all sample images found."""
+    paths: List[str] = []
+    for subdir in ("images", "test_images"):
+        found = _find_images_dir(subdir)
+        if found:
+            for f in sorted(found.iterdir()):
+                if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
+                    paths.append(str(f.resolve()))
+    return paths
+
+
+# ── JSON / drawing helpers ─────────────────────────────────────────────────────
 def _extract_first_json_object(text: str) -> Optional[Dict]:
     """Extract first {...} JSON block from raw model text."""
     depth = 0
@@ -204,10 +236,11 @@ def _extract_first_json_object(text: str) -> Optional[Dict]:
             depth -= 1
             if depth == 0 and start is not None:
                 try:
-                    return json.loads(text[start:i+1])
+                    return json.loads(text[start:i + 1])
                 except json.JSONDecodeError:
                     start = None
     return None
+
 
 def _get_pil_font(size: int) -> ImageFont.ImageFont:
     for name in ("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
@@ -218,6 +251,7 @@ def _get_pil_font(size: int) -> ImageFont.ImageFont:
             pass
     return ImageFont.load_default()
 
+
 def _yx1000_to_xy_px(pt, w: int, h: int) -> Optional[Tuple[int, int]]:
     if not isinstance(pt, list) or len(pt) != 2:
         return None
@@ -227,6 +261,7 @@ def _yx1000_to_xy_px(pt, w: int, h: int) -> Optional[Tuple[int, int]]:
         return None
     return (int(round(max(0., min(1000., x)) * (w - 1) / 1000.)),
             int(round(max(0., min(1000., y)) * (h - 1) / 1000.)))
+
 
 def _bbox1000_to_px(b, w: int, h: int) -> Optional[Tuple[int, int, int, int]]:
     if not isinstance(b, list) or len(b) != 4:
@@ -239,7 +274,8 @@ def _bbox1000_to_px(b, w: int, h: int) -> Optional[Tuple[int, int, int, int]]:
     y0 = int(round(max(0., min(1000., ymin)) * (h - 1) / 1000.))
     x1 = int(round(max(0., min(1000., xmax)) * (w - 1) / 1000.))
     y1 = int(round(max(0., min(1000., ymax)) * (h - 1) / 1000.))
-    return (min(x0,x1), min(y0,y1), max(x0,x1), max(y0,y1))
+    return (min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))
+
 
 def draw_gauge_annotations(image: Image.Image, data: Dict) -> Image.Image:
     """Render gauge bboxes, needle tips, dial centers, and point labels onto image."""
@@ -249,27 +285,25 @@ def draw_gauge_annotations(image: Image.Image, data: Dict) -> Image.Image:
     font_label = _get_pil_font(max(14, int(min(w, h) * 0.022)))
     font_small = _get_pil_font(max(11, int(min(w, h) * 0.016)))
 
-    gauge_color = (37, 99, 235)   # blue
-    needle_color = (255, 215, 0)  # gold
-    center_color = (0, 255, 255)  # cyan
-    point_color  = (34, 197, 94)  # green
+    gauge_color = (37, 99, 235)
+    needle_color = (255, 215, 0)
+    center_color = (0, 255, 255)
+    point_color  = (34, 197, 94)
 
     for idx, g in enumerate(data.get("gauges") or [], start=1):
         bbox = _bbox1000_to_px(g.get("dial_bbox_2d"), w, h)
         if bbox:
             bw = max(2, int(min(w, h) * 0.004))
             draw.rectangle(bbox, outline=gauge_color, width=bw)
-            # corner ticks
             tk = 12
-            for cx, cy, dx, dy in [(bbox[0],bbox[1],1,1),(bbox[2],bbox[1],-1,1),
-                                    (bbox[0],bbox[3],1,-1),(bbox[2],bbox[3],-1,-1)]:
-                draw.line([(cx,cy),(cx+dx*tk,cy)], fill=gauge_color, width=bw+1)
-                draw.line([(cx,cy),(cx,cy+dy*tk)], fill=gauge_color, width=bw+1)
+            for cx, cy, dx, dy in [(bbox[0], bbox[1], 1, 1), (bbox[2], bbox[1], -1, 1),
+                                    (bbox[0], bbox[3], 1, -1), (bbox[2], bbox[3], -1, -1)]:
+                draw.line([(cx, cy), (cx + dx * tk, cy)], fill=gauge_color, width=bw + 1)
+                draw.line([(cx, cy), (cx, cy + dy * tk)], fill=gauge_color, width=bw + 1)
             tx, ty = bbox[0], max(0, bbox[1] - 28)
         else:
             tx, ty = 8, 8 + idx * 30
 
-        # Label pill
         role = str(g.get("role") or "unknown").upper()
         rd = g.get("reading") or {}
         val = rd.get("value")
@@ -277,36 +311,36 @@ def draw_gauge_annotations(image: Image.Image, data: Dict) -> Image.Image:
         approx = bool(rd.get("approximate"))
         val_s = "?" if val is None else str(val)
         line = f"{role}  {val_s} {unit}".strip()
-        if approx: line += " ~"
+        if approx:
+            line += " ~"
         tw = 8 * len(line) + 18
         draw.rectangle((tx, ty, tx + tw, ty + 22), fill=(0, 0, 0, 200))
         draw.text((tx + 6, ty + 3), line, fill=(255, 255, 255), font=font_label)
 
-        # Needle tip
         for key, col in (("needle_tip_point", needle_color), ("dial_center_point", center_color)):
             xy = _yx1000_to_xy_px(g.get(key), w, h)
             if xy:
                 r = max(4, int(min(w, h) * 0.007))
-                draw.ellipse((xy[0]-r, xy[1]-r, xy[0]+r, xy[1]+r), outline=col, width=2)
+                draw.ellipse((xy[0] - r, xy[1] - r, xy[0] + r, xy[1] + r), outline=col, width=2)
                 lbl = "needle" if key == "needle_tip_point" else "center"
-                draw.text((xy[0]+r+3, xy[1]-r), lbl, fill=col, font=font_small)
+                draw.text((xy[0] + r + 3, xy[1] - r), lbl, fill=col, font=font_small)
 
-    
     for p in data.get("points") or []:
         xy = _yx1000_to_xy_px(p.get("point"), w, h)
         label = str(p.get("label") or "").strip()
-        if not xy: continue
+        if not xy:
+            continue
         r = max(4, int(min(w, h) * 0.006))
-        draw.ellipse((xy[0]-r, xy[1]-r, xy[0]+r, xy[1]+r), outline=point_color, width=2)
+        draw.ellipse((xy[0] - r, xy[1] - r, xy[0] + r, xy[1] + r), outline=point_color, width=2)
         if label:
             tw = 7 * len(label) + 12
-            draw.rectangle((xy[0]+r+2, xy[1]-2, xy[0]+r+2+tw, xy[1]+18), fill=(0,0,0,180))
-            draw.text((xy[0]+r+6, xy[1]), label, fill=(255,255,255), font=font_small)
+            draw.rectangle((xy[0] + r + 2, xy[1] - 2, xy[0] + r + 2 + tw, xy[1] + 18), fill=(0, 0, 0, 180))
+            draw.text((xy[0] + r + 6, xy[1]), label, fill=(255, 255, 255), font=font_small)
 
     return im
 
+
 def render_gauge_cards(gauges: List[Dict]):
-    """Render structured gauge reading cards."""
     for idx, g in enumerate(gauges, start=1):
         role = str(g.get("role") or "unknown").upper()
         rd = g.get("reading") or {}
@@ -327,6 +361,7 @@ def render_gauge_cards(gauges: List[Dict]):
         {notes_html}
         </div>""", unsafe_allow_html=True)
 
+
 def render_gauge_stats(data: Dict):
     gauges = data.get("gauges") or []
     readable = sum(1 for g in gauges if g.get("reading", {}).get("value") is not None)
@@ -340,7 +375,7 @@ def render_gauge_stats(data: Dict):
     </div>""", unsafe_allow_html=True)
 
 
-
+# ── Prompts / modes ────────────────────────────────────────────────────────────
 GAUGE_SYSTEM_INSTRUCTION = """You are the vision module on a Unitree Go2 quadruped doing facility inspection.
 Your job: locate every analog gauge or dial in the scene, read its value precisely, and return structured JSON.
 Use code execution to zoom/crop around each gauge face before reading — iterate until ticks and needle are legible.
@@ -394,15 +429,15 @@ MODES = {
         "prompt": GAUGE_PROMPT,
     },
     "pcb": {
-        "icon":"🔌","title":"PCB Inspection","sub":"Solder bridges, cold joints, missing parts","tag":"IPC-A-610",
-        "reasoning":"""You are an IPC-A-610 certified PCB inspector:
+        "icon": "🔌", "title": "PCB Inspection", "sub": "Solder bridges, cold joints, missing parts", "tag": "IPC-A-610",
+        "reasoning": """You are an IPC-A-610 certified PCB inspector:
 1. BOARD OVERVIEW — Type, density, expected component count?
 2. COMPONENT INVENTORY — Present, correct orientation, no tombstoning?
 3. SOLDER QUALITY — Shiny concave (good) vs dull grainy blobby (bad)?
 4. DEFECT MAPPING — Bridges, opens, misalignments, lifted pads?
 5. IPC VERDICT — Class 2 or 3 compliance?
 Return ONLY a JSON array: [{"title":"...","content":"...","tags":["..."],"confidence":0.9}]""",
-        "prompt":"""You are an expert PCB quality inspector (IPC-A-610).
+        "prompt": """You are an expert PCB quality inspector (IPC-A-610).
 
 Focus heavily on COMPONENT PLACEMENT, especially capacitors:
 - Detect misaligned capacitors (offset, rotated, skewed, not centered on pads) and tombstoned passives.
@@ -432,15 +467,15 @@ Return ONLY valid JSON:
 }"""
     },
     "label": {
-        "icon":"🏷️","title":"Label & Packaging","sub":"OCR accuracy, placement, barcode integrity","tag":"Packaging Line",
-        "reasoning":"""You are a packaging QC inspector:
+        "icon": "🏷️", "title": "Label & Packaging", "sub": "OCR accuracy, placement, barcode integrity", "tag": "Packaging Line",
+        "reasoning": """You are a packaging QC inspector:
 1. LABEL DETECTION — Count labels. Expected vs actual?
 2. TEXT EXTRACTION — Read all text. Misprints, smears, truncation?
 3. BARCODE SCAN — Intact, unobstructed, correct symbology?
 4. PLACEMENT CHECK — Square, centred, no bubbles/wrinkles/overlaps?
 5. COMPLIANCE VERDICT — Meets GS1/FDA/brand label standards?
 Return ONLY a JSON array: [{"title":"...","content":"...","tags":["..."],"confidence":0.9}]""",
-        "prompt":"""You are a packaging quality inspector with OCR and barcode expertise.
+        "prompt": """You are a packaging quality inspector with OCR and barcode expertise.
 
 You MUST extract and return key text fields even if there are no defects:
 - batch/lot number (required)
@@ -454,7 +489,6 @@ Return ONLY valid JSON:
     },
 }
 
-
 QC_MODEL_ID = "gemini-3-flash-preview"
 
 SEV_COLORS = {
@@ -464,7 +498,7 @@ SEV_COLORS = {
 }
 
 
-
+# ── QC drawing / rendering helpers ────────────────────────────────────────────
 def draw_qc_annotations(image, data):
     ann = image.copy()
     draw = ImageDraw.Draw(ann, "RGBA")
@@ -472,65 +506,72 @@ def draw_qc_annotations(image, data):
     try:
         fb = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 15)
         fn = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-    except:
+    except Exception:
         fb = fn = ImageFont.load_default()
     used = []
 
     def px(bbox):
         ymin, xmin, ymax, xmax = bbox
-        l = max(0, min(int(xmin/1000*W), W-1))
-        t = max(0, min(int(ymin/1000*H), H-1))
-        r = max(0, min(int(xmax/1000*W), W-1))
-        b = max(0, min(int(ymax/1000*H), H-1))
-        return min(l,r), min(t,b), max(l,r), max(t,b)
+        l = max(0, min(int(xmin / 1000 * W), W - 1))
+        t = max(0, min(int(ymin / 1000 * H), H - 1))
+        r = max(0, min(int(xmax / 1000 * W), W - 1))
+        b = max(0, min(int(ymax / 1000 * H), H - 1))
+        return min(l, r), min(t, b), max(l, r), max(t, b)
 
     def place(lx, lw, bt, bb, lh, m=4):
-        for cy in [bt-lh-m, bb+m]:
-            cy = max(0, min(cy, H-lh))
-            r = (lx, cy, lx+lw, cy+lh)
-            if not any(r[0]<u[2] and r[2]>u[0] and r[1]<u[3] and r[3]>u[1] for u in used):
-                used.append(r); return cy
+        for cy in [bt - lh - m, bb + m]:
+            cy = max(0, min(cy, H - lh))
+            r = (lx, cy, lx + lw, cy + lh)
+            if not any(r[0] < u[2] and r[2] > u[0] and r[1] < u[3] and r[3] > u[1] for u in used):
+                used.append(r)
+                return cy
         last = max((u[3] for u in used), default=bb)
-        cy = min(last+m, H-lh); used.append((lx, cy, lx+lw, cy+lh)); return cy
+        cy = min(last + m, H - lh)
+        used.append((lx, cy, lx + lw, cy + lh))
+        return cy
 
     for d in data.get("defects", []):
-        if "bbox" not in d: continue
+        if "bbox" not in d:
+            continue
         sev = d.get("severity", "WARNING")
         hx, rgb = SEV_COLORS.get(sev, SEV_COLORS["WARNING"])
         l, t, r, b = px(d["bbox"])
-        if r-l < 4 or b-t < 4: continue
-        draw.rectangle([l, t, r, b], fill=rgb+(40,), outline=rgb, width=3)
+        if r - l < 4 or b - t < 4:
+            continue
+        draw.rectangle([l, t, r, b], fill=rgb + (40,), outline=rgb, width=3)
         tk = 10
-        for cx, cy, dx, dy in [(l,t,1,1),(r,t,-1,1),(l,b,1,-1),(r,b,-1,-1)]:
-            draw.line([(cx,cy),(cx+dx*tk,cy)], fill=rgb, width=3)
-            draw.line([(cx,cy),(cx,cy+dy*tk)], fill=rgb, width=3)
-        ln1 = f"{d.get('id','')} · {d.get('type','')}  {int(d.get('confidence',0)*100)}%"
-        ln2 = f"{sev}  ·  {d.get('action','')}"
-        b1 = draw.textbbox((0,0), ln1, font=fb)
-        b2 = draw.textbbox((0,0), ln2, font=fn)
-        lw2 = max(b1[2]-b1[0], b2[2]-b2[0]) + 14
-        lh2 = (b1[3]-b1[1]) + (b2[3]-b2[1]) + 10
-        lx = max(0, min(l, W-lw2-2))
+        for cx, cy, dx, dy in [(l, t, 1, 1), (r, t, -1, 1), (l, b, 1, -1), (r, b, -1, -1)]:
+            draw.line([(cx, cy), (cx + dx * tk, cy)], fill=rgb, width=3)
+            draw.line([(cx, cy), (cx, cy + dy * tk)], fill=rgb, width=3)
+        ln1 = f"{d.get('id', '')} · {d.get('type', '')}  {int(d.get('confidence', 0) * 100)}%"
+        ln2 = f"{sev}  ·  {d.get('action', '')}"
+        b1 = draw.textbbox((0, 0), ln1, font=fb)
+        b2 = draw.textbbox((0, 0), ln2, font=fn)
+        lw2 = max(b1[2] - b1[0], b2[2] - b2[0]) + 14
+        lh2 = (b1[3] - b1[1]) + (b2[3] - b2[1]) + 10
+        lx = max(0, min(l, W - lw2 - 2))
         ly = place(lx, lw2, t, b, lh2)
-        draw.rectangle([lx, ly, lx+lw2, ly+lh2], fill=(255,255,255,220), outline=rgb, width=1)
-        draw.text((lx+6, ly+3), ln1, fill=hx, font=fb)
-        draw.text((lx+6, ly+3+(b1[3]-b1[1])+2), ln2, fill=(80,80,90), font=fn)
-        draw.line([(lx+lw2//2, ly+lh2//2), ((l+r)//2, (t+b)//2)], fill=rgb+(100,), width=1)
+        draw.rectangle([lx, ly, lx + lw2, ly + lh2], fill=(255, 255, 255, 220), outline=rgb, width=1)
+        draw.text((lx + 6, ly + 3), ln1, fill=hx, font=fb)
+        draw.text((lx + 6, ly + 3 + (b1[3] - b1[1]) + 2), ln2, fill=(80, 80, 90), font=fn)
+        draw.line([(lx + lw2 // 2, ly + lh2 // 2), ((l + r) // 2, (t + b) // 2)], fill=rgb + (100,), width=1)
     return ann
 
+
 def render_verdict(v, reason, score):
-    cls = {"PASS":"verdict-pass","FAIL":"verdict-fail","REVIEW":"verdict-review"}.get(v,"verdict-review")
-    icon = {"PASS":"✅","FAIL":"❌","REVIEW":"⚠️"}.get(v,"⚠️")
-    sc = {"PASS":"#15803d","FAIL":"#dc2626","REVIEW":"#b45309"}.get(v,"#b45309")
+    cls = {"PASS": "verdict-pass", "FAIL": "verdict-fail", "REVIEW": "verdict-review"}.get(v, "verdict-review")
+    icon = {"PASS": "✅", "FAIL": "❌", "REVIEW": "⚠️"}.get(v, "⚠️")
+    sc = {"PASS": "#15803d", "FAIL": "#dc2626", "REVIEW": "#b45309"}.get(v, "#b45309")
     st.markdown(f"""<div class="verdict {cls}"><div class="verdict-icon">{icon}</div>
     <div style="flex:1"><div class="verdict-title">{v} — Inspection Complete</div><div class="verdict-sub">{reason}</div></div>
     <div class="score-ring-wrap"><div class="score-num" style="color:{sc}">{score}</div><div class="score-lbl">QUALITY<br>SCORE</div></div>
     </div>""", unsafe_allow_html=True)
 
+
 def render_stats(defects):
     crit = sum(1 for d in defects if d.get("severity") == "CRITICAL")
     warn = sum(1 for d in defects if d.get("severity") == "WARNING")
-    types = len(set(d.get("type","") for d in defects))
+    types = len(set(d.get("type", "") for d in defects))
     st.markdown(f"""<div class="stats-row">
     <div class="stat-card"><div class="stat-num stat-blue">{len(defects)}</div><div class="stat-lbl">Total Findings</div></div>
     <div class="stat-card"><div class="stat-num stat-red">{crit}</div><div class="stat-lbl">Critical</div></div>
@@ -538,41 +579,44 @@ def render_stats(defects):
     <div class="stat-card"><div class="stat-num stat-green">{types}</div><div class="stat-lbl">Defect Types</div></div>
     </div>""", unsafe_allow_html=True)
 
+
 def render_cards(defects):
-    sb = {"CRITICAL":"badge-red","WARNING":"badge-amber","PASS":"badge-green"}
+    sb = {"CRITICAL": "badge-red", "WARNING": "badge-amber", "PASS": "badge-green"}
     for d in defects:
-        sev = d.get("severity","WARNING")
-        cls = {"CRITICAL":"critical","WARNING":"warning","PASS":"pass"}.get(sev,"warning")
+        sev = d.get("severity", "WARNING")
+        cls = {"CRITICAL": "critical", "WARNING": "warning", "PASS": "pass"}.get(sev, "warning")
         st.markdown(f"""<div class="defect-card {cls}">
-        <div class="defect-id">{d.get('id','')} · {d.get('type','')}</div>
-        <div class="defect-name">{d.get('type','')} — {d.get('size_estimate','')}</div>
-        <div class="defect-loc">📍 {d.get('location','')}</div>
-        <div class="defect-cause">💡 {d.get('root_cause','')}</div>
+        <div class="defect-id">{d.get('id', '')} · {d.get('type', '')}</div>
+        <div class="defect-name">{d.get('type', '')} — {d.get('size_estimate', '')}</div>
+        <div class="defect-loc">📍 {d.get('location', '')}</div>
+        <div class="defect-cause">💡 {d.get('root_cause', '')}</div>
         <div class="defect-meta">
-          <span class="badge {sb.get(sev,'badge-amber')}">{sev}</span>
-          <span class="badge badge-blue">{int(d.get('confidence',0)*100)}% conf</span>
-          <span class="badge badge-slate">→ {d.get('action','')}</span>
+          <span class="badge {sb.get(sev, 'badge-amber')}">{sev}</span>
+          <span class="badge badge-blue">{int(d.get('confidence', 0) * 100)}% conf</span>
+          <span class="badge badge-slate">→ {d.get('action', '')}</span>
         </div></div>""", unsafe_allow_html=True)
+
 
 def render_reasoning(steps):
     html = '<div class="trace-wrap"><div class="trace-hdr">🧠 &nbsp;Agent Reasoning Trace</div>'
     for i, s in enumerate(steps):
-        body = s.get("content","").replace("<","&lt;").replace(">","&gt;")
-        tags = "".join(f'<span class="trace-tag">{t}</span>' for t in s.get("tags",[]))
+        body = s.get("content", "").replace("<", "&lt;").replace(">", "&gt;")
+        tags = "".join(f'<span class="trace-tag">{t}</span>' for t in s.get("tags", []))
         conf = s.get("confidence", None)
         cb = ""
         if conf is not None:
-            p = int(conf*100)
+            p = int(conf * 100)
             cb = (f'<div class="conf-row"><div class="conf-bar-bg">'
                   f'<div class="conf-bar-fill" style="width:{p}%"></div></div>'
                   f'<div class="conf-pct">{p}%</div></div>')
-        html += (f'<div class="trace-step"><div class="trace-num">{i+1:02d}</div>'
-                 f'<div class="trace-body"><div class="trace-title">{s.get("title",f"Step {i+1}")}</div>'
+        html += (f'<div class="trace-step"><div class="trace-num">{i + 1:02d}</div>'
+                 f'<div class="trace-body"><div class="trace-title">{s.get("title", f"Step {i + 1}")}</div>'
                  f'<div class="trace-content">{body}</div>'
                  f'<div class="trace-tags">{tags}</div>{cb}</div></div>')
     st.markdown(html + "</div>", unsafe_allow_html=True)
 
 
+# ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### ⚙️ Configuration")
     st.caption("API keys are taken from `.env`/environment variables.")
@@ -596,8 +640,8 @@ with st.sidebar:
     thinking_budget = st.slider("Thinking budget", 0, 24576, 8192, 256, disabled=not use_thinking)
     temperature_gauge = st.slider("Temperature (Gauge)", 0.0, 1.0, 0.3, 0.05)
     gauge_prompt_mode = st.radio("Gauge prompt mode",
-                                  ["Gauge JSON (structured)", "Scene Description (freeform)"],
-                                  help="JSON mode returns parseable gauge readings with bboxes. Scene mode returns a freeform inspection description.")
+                                 ["Gauge JSON (structured)", "Scene Description (freeform)"],
+                                 help="JSON mode returns parseable gauge readings with bboxes. Scene mode returns a freeform inspection description.")
 
     st.markdown("---")
     if st.button("List Available Models"):
@@ -610,9 +654,21 @@ with st.sidebar:
                 st.error(str(e))
 
     st.markdown("---")
+
+    # Path debug — helpful when diagnosing Render deployment issues
+    with st.expander("🗂 Path debug", expanded=False):
+        st.caption(f"**`__file__`**: `{Path(__file__).resolve()}`")
+        st.caption(f"**cwd**: `{Path.cwd()}`")
+        for sd in ("images", "test_images"):
+            found = _find_images_dir(sd)
+            st.caption(f"**{sd}/**: `{found or 'not found'}`")
+
+    st.markdown("---")
     st.markdown("### ℹ️ About")
     st.caption("Visio uses Gemini agentic vision. Gauge Reader uses ER1.6 code-execution + thinking for precise dial readings with annotated bboxes, needle tips, and structured output.")
 
+
+# ── Top bar ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="topbar">
   <div class="topbar-brand">
@@ -623,12 +679,14 @@ st.markdown("""
 </div>""", unsafe_allow_html=True)
 
 
+# ── Mode selector ──────────────────────────────────────────────────────────────
 st.markdown('<div class="sec-head">Select Inspection Mode</div>', unsafe_allow_html=True)
-if "mode" not in st.session_state: st.session_state["mode"] = "Gauge Reader"
+if "mode" not in st.session_state:
+    st.session_state["mode"] = "Gauge Reader"
 mode_keys = list(MODES.keys())
 for row in range((len(mode_keys) + 3) // 4):
     cols = st.columns(4)
-    for ci, key in enumerate(mode_keys[row*4:(row+1)*4]):
+    for ci, key in enumerate(mode_keys[row * 4:(row + 1) * 4]):
         m = MODES[key]
         active = "active" if st.session_state["mode"] == key else ""
         with cols[ci]:
@@ -638,14 +696,14 @@ for row in range((len(mode_keys) + 3) // 4):
             <div class="mode-sub">{m['sub']}</div>
             <span class="mode-tag">{m['tag']}</span></div>""", unsafe_allow_html=True)
             if st.button("Select", key=f"btn_{key}"):
-                st.session_state["mode"] = key; st.rerun()
+                st.session_state["mode"] = key
+                st.rerun()
 
 mode_key = st.session_state["mode"]
 mode_cfg = MODES[mode_key]
 st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-# If Gauge Reader is selected, delegate to the full ER1.6 image-first app UI.
-# This avoids duplicating upload/run controls and keeps the gauge workflow in one place.
+# ── Gauge Reader — delegate to ER1.6 sub-app ──────────────────────────────────
 if mode_key == "Gauge Reader":
     from streamlit_er16_image_first import render_app as _render_er16_image_first
 
@@ -656,61 +714,77 @@ if mode_key == "Gauge Reader":
     _render_er16_image_first(embedded=True, api_key=key1)
     st.stop()
 
-st.markdown(f'<div class="sec-head">{mode_cfg["icon"]} {mode_cfg["title"]} — Image Input</div>', unsafe_allow_html=True)
 
+# ── Image input section (PCB / Label modes) ────────────────────────────────────
+st.markdown(f'<div class="sec-head">{mode_cfg["icon"]} {mode_cfg["title"]} — Image Input</div>',
+            unsafe_allow_html=True)
 
 left_col, right_col = st.columns([2, 2])
 
-
-img_root = Path(__file__).resolve().parent
-def _list_images_in(subdir: str):
-    p = img_root / subdir
-    if not p.is_dir():
-        p = Path.cwd() / subdir
-    if not p.is_dir():
-        return []
-    return sorted([str(x.name) for x in p.iterdir() if x.suffix.lower() in ('.jpg','.jpeg','.png')])
-
-left_choices = []
-for subdir in ('images', 'test_images'):
-    left_choices += [f"{subdir}/{n}" for n in _list_images_in(subdir)]
+# Collect sample images using the robust multi-root finder
+sample_images = _list_sample_images()
 
 with left_col:
-    if not left_choices:
-        st.warning("No sample images found in `images/` or `test_images/`.")
-        selection = None
+    # ── File uploader (always visible; takes priority over sample selection) ──
+    uploaded_file = st.file_uploader(
+        "Upload an image",
+        type=["jpg", "jpeg", "png"],
+        help="Upload your own image. If sample images are also available below, the upload takes priority.",
+    )
+
+    # ── Sample image selector (shown only when samples exist) ─────────────────
+    selection: Optional[str] = None
+    if sample_images:
+        # Show friendly relative names in the dropdown but keep absolute paths as values
+        display_names = [Path(p).name for p in sample_images]
+        chosen_idx = st.selectbox(
+            "Or choose a sample image",
+            range(len(sample_images)),
+            format_func=lambda i: display_names[i],
+        )
+        selection = sample_images[chosen_idx]
     else:
-        selection = st.selectbox("Choose image", left_choices, index=0)
+        st.info("No sample images found in `images/` or `test_images/`. Upload one above.")
 
-    img_bytes = None
-    uploaded_name = None
-    image = None
+    # ── Resolve final image bytes ──────────────────────────────────────────────
+    img_bytes: Optional[bytes] = None
+    uploaded_name: Optional[str] = None
+    image: Optional[Image.Image] = None
 
-    if selection:
-        # Always resolve relative to the repo root
-        repo_root = Path(__file__).parent
-        
-        # Normalize selection
-        selection = selection.strip().lstrip("/")
-        
-        # Build full path
-        sel_path = repo_root / selection
-        
+    if uploaded_file is not None:
+        # Uploaded file takes priority
+        img_bytes = uploaded_file.read()
+        uploaded_name = uploaded_file.name
+        try:
+            image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+            st.image(image,
+                     caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
+                     use_container_width=True)
+        except Exception as e:
+            st.error(f"Could not open uploaded image: {e}")
+            image = None
+
+    elif selection is not None:
+        sel_path = Path(selection)
         if sel_path.is_file():
             try:
                 img_bytes = sel_path.read_bytes()
+                uploaded_name = sel_path.name
                 image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-                st.image(image, caption=f"{selection} — {image.size[0]}×{image.size[1]}px", use_container_width=True)
-            except Exception:
-                st.error(f"Could not open {selection}.")
+                st.image(image,
+                         caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
+                         use_container_width=True)
+            except Exception as e:
+                st.error(f"Could not open {sel_path.name}: {e}")
         else:
-            st.error(f"File not found: {sel_path}")
+            st.warning(f"Sample image not found on disk: `{selection}`")
 
     st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
     run = st.button("▶ Run Inspection", key="run_btn")
 
 
 st.markdown("---")
+
 
 # ── Execute ────────────────────────────────────────────────────────────────────
 if run and image:
@@ -720,17 +794,17 @@ if run and image:
         st.stop()
 
     client = genai.Client(api_key=key2)
-    # Use image bytes/name from selector/upload above
+
     if img_bytes is None:
         st.error("Please upload or select an image first.")
         st.stop()
-    mime = "image/jpeg" if (uploaded_name or "").lower().endswith(("jpg","jpeg")) else "image/png"
 
-    # ── GAUGE READER (ER1.6 path) ─────────────────────────────────────────────
+    mime = "image/jpeg" if (uploaded_name or "").lower().endswith(("jpg", "jpeg")) else "image/png"
+
+    # ── GAUGE READER (ER1.6 path) ──────────────────────────────────────────────
     if mode_key == "Gauge Reader":
         active_prompt = GAUGE_SCENE_PROMPT if "Scene" in gauge_prompt_mode else GAUGE_PROMPT
 
-        # Single-phase: one call with code execution + thinking
         with st.spinner("🔭 Gauge Reader — running ER1.6 agentic inspection with code execution…"):
             cfg_kwargs: Dict[str, Any] = {
                 "temperature": temperature_gauge,
@@ -753,35 +827,29 @@ if run and image:
                 st.stop()
 
         if "Scene" in gauge_prompt_mode:
-            # Scene description — freeform output
             st.markdown('<div class="sec-head">🔭 Scene Description</div>', unsafe_allow_html=True)
             st.markdown(f'<div class="scene-summary">🤖 {raw_text}</div>', unsafe_allow_html=True)
             with st.expander("Raw model output", expanded=False):
                 st.code(raw_text)
         else:
-            # Structured JSON path
             parsed = _extract_first_json_object(raw_text)
 
             if parsed is None:
                 st.warning("Could not parse JSON from model response. Showing raw output.")
                 st.code(raw_text)
             else:
-                # Scene summary banner
-                summary = parsed.get("scene_summary","")
+                summary = parsed.get("scene_summary", "")
                 if summary:
                     st.markdown(f'<div class="scene-summary">🤖 {summary}</div>', unsafe_allow_html=True)
 
-                # Stats row
                 render_gauge_stats(parsed)
 
-                # Two-column: annotated image | gauge cards + raw JSON
                 ic, cc = st.columns([3, 2])
                 with ic:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
                     annotated = draw_gauge_annotations(image, parsed)
                     st.image(annotated, use_container_width=True)
 
-                    
                     buf = io.BytesIO()
                     annotated.save(buf, format="PNG")
                     st.download_button("⬇ Download Annotated PNG", data=buf.getvalue(),
@@ -811,10 +879,12 @@ if run and image:
         steps = []
         try:
             rt = r1.text.strip()
-            if rt.startswith("```"): rt = rt.split("```")[1]; rt = rt[4:] if rt.startswith("json") else rt
+            if rt.startswith("```"):
+                rt = rt.split("```")[1]
+                rt = rt[4:] if rt.startswith("json") else rt
             steps = json.loads(rt.strip())
-        except:
-            steps = [{"title":"RAW ANALYSIS","content":r1.text,"tags":[]}]
+        except Exception:
+            steps = [{"title": "RAW ANALYSIS", "content": r1.text, "tags": []}]
 
         with st.spinner("🔍 Phase 2 — Defect detection & bounding boxes…"):
             r2 = client.models.generate_content(
@@ -823,10 +893,11 @@ if run and image:
                 config=types.GenerateContentConfig(temperature=0.1))
         try:
             raw = r2.text.strip()
-            if raw.startswith("```"): raw = raw.split("```")[1]; raw = raw[4:] if raw.startswith("json") else raw
+            if raw.startswith("```"):
+                raw = raw.split("```")[1]
+                raw = raw[4:] if raw.startswith("json") else raw
             data = json.loads(raw.strip())
 
-           
             try:
                 with right_col:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
@@ -836,23 +907,25 @@ if run and image:
                         padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
                         📋 {data['summary']}</div>""", unsafe_allow_html=True)
 
-                    render_verdict(data.get("verdict","REVIEW"), data.get("verdict_reason","Done."), data.get("overall_quality_score",0))
-                    render_stats(data.get("defects",[]))
+                    render_verdict(data.get("verdict", "REVIEW"), data.get("verdict_reason", "Done."),
+                                   data.get("overall_quality_score", 0))
+                    render_stats(data.get("defects", []))
 
                     st.markdown('<div class="sec-head">Defect Report</div>', unsafe_allow_html=True)
-                    defects = data.get("defects",[])
+                    defects = data.get("defects", [])
                     if defects:
                         render_cards(defects)
                     else:
                         st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
                             padding:16px;text-align:center;color:#15803d;font-weight:600;">✅ No defects detected</div>""",
-                            unsafe_allow_html=True)
+                                    unsafe_allow_html=True)
 
-                    st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>', unsafe_allow_html=True)
+                    st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>',
+                                unsafe_allow_html=True)
                     with st.expander("🧠 View full reasoning trace", expanded=False):
                         render_reasoning(steps)
-            except Exception as e:
-                # Fallback to original columns if right_col is not available
+
+            except Exception:
                 ic, cc = st.columns([3, 2])
                 with ic:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
@@ -862,18 +935,20 @@ if run and image:
                         padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
                         📋 {data['summary']}</div>""", unsafe_allow_html=True)
 
-                    render_verdict(data.get("verdict","REVIEW"), data.get("verdict_reason","Done."), data.get("overall_quality_score",0))
-                    render_stats(data.get("defects",[]))
+                    render_verdict(data.get("verdict", "REVIEW"), data.get("verdict_reason", "Done."),
+                                   data.get("overall_quality_score", 0))
+                    render_stats(data.get("defects", []))
                 with cc:
                     st.markdown('<div class="sec-head">Defect Report</div>', unsafe_allow_html=True)
-                    defects = data.get("defects",[])
+                    defects = data.get("defects", [])
                     if defects:
                         render_cards(defects)
                     else:
                         st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
                             padding:16px;text-align:center;color:#15803d;font-weight:600;">✅ No defects detected</div>""",
+                                    unsafe_allow_html=True)
+                st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>',
                             unsafe_allow_html=True)
-                st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>', unsafe_allow_html=True)
                 with st.expander("🧠 View full reasoning trace", expanded=False):
                     render_reasoning(steps)
 
@@ -885,4 +960,4 @@ if run and image:
             st.code(r2.text)
 
 elif run and not image:
-    st.warning("Please upload an image first.")
+    st.warning("Please upload or select an image first.")
