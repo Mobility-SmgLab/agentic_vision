@@ -23,7 +23,8 @@ st.set_page_config(
 
 st.markdown("### 🛠 Path Debug")
 
-here = Path(__file__).resolve().parent
+# here = Path(__file__).resolve().parent
+here = Path(os.path.abspath(os.path.dirname(__file__)))
 st.code(f"""
 __file__           : {Path(__file__)}
 __file__ resolved  : {here}
