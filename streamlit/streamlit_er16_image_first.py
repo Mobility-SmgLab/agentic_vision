@@ -732,7 +732,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
     _inject_app_styles()
     # _render_sticky_title()
 
-    images_dir = Path(__file__).resolve().parent / "images"
+    images_dir = Path(__file__).resolve().parent / "static"
     gallery_images = _load_gallery_images(images_dir)
 
     with st.sidebar:
@@ -817,7 +817,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
 
             if source == "Gallery":
                 if not gallery_images:
-                    st.warning("No sample images found in `google_robotics_agentic/images`.")
+                    st.warning("No sample images found in `google_robotics_agentic/static`.")
                 else:
                     labels = [p.name for p in gallery_images]
                     selected = st.selectbox("Sample image", labels, index=0, key=f"{key_prefix}sample_image")
