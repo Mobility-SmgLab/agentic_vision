@@ -190,35 +190,24 @@ def _mask_key(k: str) -> str:
 
 # ── Robust image directory finder ─────────────────────────────────────────────
 def _find_images_dir(subdir: str) -> Optional[Path]:
-    """Search several candidate roots for an images subfolder.
-
-    On Render the working directory and __file__ parent can differ, and the
-    service root may live at /opt/render/project/src. We try all plausible
-    locations so sample images are found regardless of deployment environment.
-    """
-    candidates = [
-        Path(__file__).resolve().parent,           # beside app.py (most common)
-        Path(__file__).resolve().parent.parent,    # one level up
-        Path.cwd(),                                # CWD at runtime
-        Path("/opt/render/project/src"),           # Render's default root
-        Path("/app"),                              # common Docker root
-    ]
-    for root in candidates:
-        p = root / subdir
-        if p.is_dir():
-            return p
+    # Always resolve relative to THIS file (qc_vision.py)
+    # so streamlit/images/ is found regardless of where
+    # the process is launched from (Render, Docker, local).
+    here = Path(__file__).resolve().parent   # → .../streamlit/
+    p = here / subdir
+    if p.is_dir():
+        return p
     return None
 
 
 def _list_sample_images() -> List[str]:
-    """Return a list of absolute paths for all sample images found."""
+    """Return absolute paths for all sample images in streamlit/images/."""
     paths: List[str] = []
-    for subdir in ("images", "test_images"):
-        found = _find_images_dir(subdir)
-        if found:
-            for f in sorted(found.iterdir()):
-                if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
-                    paths.append(str(f.resolve()))
+    found = _find_images_dir("images")   # only look in images/, not test_images/
+    if found:
+        for f in sorted(found.iterdir()):
+            if f.suffix.lower() in (".jpg", ".jpeg", ".png"):
+                paths.append(str(f.resolve()))
     return paths
 
 
