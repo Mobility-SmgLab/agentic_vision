@@ -39,7 +39,7 @@ try:
 except Exception as ex:
     st.error(f"Could not list dir: {ex}")
 
-img_dir = here / "images"
+img_dir = here / "streamlit" / "images"
 if img_dir.is_dir():
     st.markdown("**Contents of `images/`:**")
     files = sorted(img_dir.iterdir())
