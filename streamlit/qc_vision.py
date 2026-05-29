@@ -29,8 +29,8 @@ st.code(f"""
 __file__           : {Path(__file__)}
 __file__ resolved  : {here}
 cwd                : {Path.cwd()}
-images/ exists     : {(here / 'images').exists()}
-images/ is_dir     : {(here / 'images').is_dir()}
+static/ exists     : {(here / 'static').exists()}
+static/ is_dir     : {(here / 'static').is_dir()}
 """)
 
 st.markdown("**Contents of `__file__` parent dir:**")
@@ -40,16 +40,16 @@ try:
 except Exception as ex:
     st.error(f"Could not list dir: {ex}")
 
-img_dir = here / "images"
+img_dir = here / "static"
 if img_dir.is_dir():
-    st.markdown("**Contents of `images/`:**")
+    st.markdown("**Contents of `static/`:**")
     files = sorted(img_dir.iterdir())
     if files:
         st.code("\n".join(e.name for e in files))
     else:
-        st.warning("images/ folder EXISTS but is EMPTY")
+        st.warning("static/ folder EXISTS but is EMPTY")
 else:
-    st.warning("images/ folder NOT FOUND next to qc_vision.py")
+    st.warning("static  / folder NOT FOUND next to qc_vision.py")
 
     st.markdown("**Searching entire /opt/render tree for .jpg/.png (first 30):**")
     try:
@@ -685,7 +685,7 @@ with st.sidebar:
     with st.expander("🗂 Path debug", expanded=False):
         st.caption(f"**`__file__`**: `{Path(__file__).resolve()}`")
         st.caption(f"**cwd**: `{Path.cwd()}`")
-        for sd in ("images"):
+        for sd in ("static"):
             found = _find_images_dir(sd)
             st.caption(f"**{sd}/**: `{found or 'not found'}`")
 
@@ -751,7 +751,7 @@ left_col, right_col = st.columns([2, 2])
 img_root = Path(__file__).resolve().parent
 def _collect_images_from_roots(root: Path) -> List[str]:
     imgs: List[str] = []
-    roots = [root, root / "images"]
+    roots = [root, root / "static"]
     for r in roots:
         if not r.exists():
             continue
