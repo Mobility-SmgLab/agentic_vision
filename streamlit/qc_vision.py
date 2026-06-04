@@ -179,6 +179,37 @@ else:
 ENV_FILE_PATH = Path(__file__).resolve().parent / ".env"
 
 
+def _get_env_key(env_name: str, fallback_names: Optional[List[str]] = None) -> str:
+    key = (os.environ.get(env_name) or "").strip()
+    if not key and fallback_names:
+        for fallback in fallback_names:
+            key = (os.environ.get(fallback) or "").strip()
+            if key:
+                break
+    return key
+
+
+def _format_api_error(exc: Exception) -> str:
+    if hasattr(exc, "status_code"):
+        status = getattr(exc, "status_code")
+        return f"{type(exc).__name__} (status={status}): {str(exc)}"
+    return str(exc)
+
+
+def _generate_content_with_fallback(client, contents, config, model_id: str):
+    try:
+        return client.models.generate_content(model=model_id, contents=contents, config=config)
+    except Exception as exc:
+        if model_id != DEFAULT_QC_MODEL_ID:
+            try:
+                return client.models.generate_content(model=DEFAULT_QC_MODEL_ID, contents=contents, config=config)
+            except Exception as exc2:
+                raise RuntimeError(
+                    f"Model `{model_id}` failed and fallback `{DEFAULT_QC_MODEL_ID}` also failed: {str(exc2)}"
+                ) from exc2
+        raise
+
+
 def _mask_key(k: str) -> str:
     k = (k or "").strip()
     if not k:
@@ -468,7 +499,9 @@ Return ONLY valid JSON:
     },
 }
 
-QC_MODEL_ID = "gemini-3-flash-preview"
+DEFAULT_QC_MODEL_ID = "gemini-3.5-pro"
+PREVIEW_QC_MODEL_ID = "gemini-3-flash-preview"
+QC_MODEL_ID = os.environ.get("QC_MODEL_ID", DEFAULT_QC_MODEL_ID).strip() or DEFAULT_QC_MODEL_ID
 
 SEV_COLORS = {
     "CRITICAL": ("#dc2626", (220, 38, 38)),
@@ -602,15 +635,15 @@ with st.sidebar:
     with st.expander("API key status", expanded=False):
         st.caption(f".env path: `{str(ENV_FILE_PATH)}`")
         st.caption(f".env exists: `{ENV_FILE_PATH.is_file()}`")
-        st.caption(f"GEMINI_API_KEY_1: `{_mask_key(os.environ.get('GEMINI_API_KEY_1'))}`")
-        st.caption(f"GEMINI_API_KEY_2: `{_mask_key(os.environ.get('GEMINI_API_KEY_2'))}`")
-    if not (os.environ.get("GEMINI_API_KEY_1") or "").strip():
-        st.warning("Missing `GEMINI_API_KEY_1` (used for Gauge Reader).")
-    if not (os.environ.get("GEMINI_API_KEY_2") or "").strip():
-        st.warning("Missing `GEMINI_API_KEY_2` (used for PCB + Label & Packaging).")
+        st.caption(f"GEMINI_API_KEY_1/GOOGLE_API_KEY/GENAI_API_KEY: `{_mask_key(_get_env_key('GEMINI_API_KEY_1', ['GOOGLE_API_KEY', 'GENAI_API_KEY']))}`")
+        st.caption(f"GEMINI_API_KEY_2/GOOGLE_API_KEY/GENAI_API_KEY: `{_mask_key(_get_env_key('GEMINI_API_KEY_2', ['GOOGLE_API_KEY', 'GENAI_API_KEY']))}`")
+    if not _get_env_key("GEMINI_API_KEY_1", ["GOOGLE_API_KEY", "GENAI_API_KEY"]):
+        st.warning("Missing `GEMINI_API_KEY_1` or fallback API key (used for Gauge Reader).")
+    if not _get_env_key("GEMINI_API_KEY_2", ["GOOGLE_API_KEY", "GENAI_API_KEY"]):
+        st.warning("Missing `GEMINI_API_KEY_2` or fallback API key (used for PCB + Label & Packaging).")
     st.caption("Locked models:")
     st.caption("- Gauge Reader: `gemini-robotics-er-1.6-preview`")
-    st.caption("- PCB/Label: `gemini-3-flash-preview`")
+    st.caption(f"- PCB/Label: `{QC_MODEL_ID}` (override with QC_MODEL_ID env var)")
 
     st.markdown("---")
     st.markdown("### 🔭 Gauge Reader Settings")
@@ -624,13 +657,13 @@ with st.sidebar:
 
     st.markdown("---")
     if st.button("List Available Models"):
-        key2 = (os.environ.get("GEMINI_API_KEY_2") or "").strip()
+        key2 = _get_env_key("GEMINI_API_KEY_2", ["GOOGLE_API_KEY", "GENAI_API_KEY"])
         if key2:
             try:
                 c = genai.Client(api_key=key2)
                 st.code("\n".join(m.name for m in c.models.list() if hasattr(m, "name")))
             except Exception as e:
-                st.error(str(e))
+                st.error(_format_api_error(e))
 
     st.markdown("---")
 
@@ -686,9 +719,9 @@ st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 if mode_key == "Gauge Reader":
     from streamlit_er16_image_first import render_app as _render_er16_image_first
 
-    key1 = (os.environ.get("GEMINI_API_KEY_1") or "").strip()
+    key1 = _get_env_key("GEMINI_API_KEY_1", ["GOOGLE_API_KEY", "GENAI_API_KEY"])
     if not key1:
-        st.error("⚠️ Missing `GEMINI_API_KEY_1` for Gauge Reader.")
+        st.error("⚠️ Missing `GEMINI_API_KEY_1` or fallback API key for Gauge Reader.")
         st.stop()
     _render_er16_image_first(embedded=True, api_key=key1)
     st.stop()
@@ -853,10 +886,16 @@ if run and image:
     # ── Standard QC path (PCB, Label, etc.) ───────────────────────────────────
     else:
         with st.spinner(f"🧠 Phase 1 — {mode_cfg['title']} reasoning trace…"):
-            r1 = client.models.generate_content(
-                model=QC_MODEL_ID,
-                contents=[types.Part.from_bytes(data=img_bytes, mime_type=mime), mode_cfg["reasoning"]],
-                config=types.GenerateContentConfig(temperature=0.3))
+            try:
+                r1 = _generate_content_with_fallback(
+                    client,
+                    [types.Part.from_bytes(data=img_bytes, mime_type=mime), mode_cfg["reasoning"]],
+                    types.GenerateContentConfig(temperature=0.3),
+                    QC_MODEL_ID,
+                )
+            except Exception as e:
+                st.error(f"Gemini API error (Phase 1): {_format_api_error(e)}")
+                st.stop()
         steps = []
         try:
             rt = r1.text.strip()
@@ -868,10 +907,16 @@ if run and image:
             steps = [{"title": "RAW ANALYSIS", "content": r1.text, "tags": []}]
 
         with st.spinner("🔍 Phase 2 — Defect detection & bounding boxes…"):
-            r2 = client.models.generate_content(
-                model=QC_MODEL_ID,
-                contents=[types.Part.from_bytes(data=img_bytes, mime_type=mime), mode_cfg["prompt"]],
-                config=types.GenerateContentConfig(temperature=0.1))
+            try:
+                r2 = _generate_content_with_fallback(
+                    client,
+                    [types.Part.from_bytes(data=img_bytes, mime_type=mime), mode_cfg["prompt"]],
+                    types.GenerateContentConfig(temperature=0.1),
+                    QC_MODEL_ID,
+                )
+            except Exception as e:
+                st.error(f"Gemini API error (Phase 2): {_format_api_error(e)}")
+                st.stop()
         try:
             raw = r2.text.strip()
             if raw.startswith("```"):
