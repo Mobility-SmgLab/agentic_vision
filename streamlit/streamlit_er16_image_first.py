@@ -414,7 +414,7 @@ def infer_with_custom_prompt(
         "tools": [types.Tool(code_execution=types.ToolCodeExecution())],
     }
     if thinking_budget is not None:
-        cfg_kwargs["thinking_config"] = types.ThinkingConfig(budget=thinking_budget)
+        cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
     cfg = types.GenerateContentConfig(**cfg_kwargs)
 
     resp = client.models.generate_content(
