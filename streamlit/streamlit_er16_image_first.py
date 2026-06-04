@@ -411,10 +411,12 @@ def infer_with_custom_prompt(
     cfg_kwargs: Dict[str, Any] = {
         "temperature": temperature,
         "system_instruction": system_instruction,
-        "tools": [types.Tool(code_execution=types.ToolCodeExecution())],
+        # "tools": [types.Tool(code_execution=types.ToolCodeExecution())],
     }
     if thinking_budget is not None:
         cfg_kwargs["thinking_config"] = types.ThinkingConfig(thinking_budget=thinking_budget)
+    else:
+        cfg_kwargs["tools"] = [types.Tool(code_execution=types.ToolCodeExecution())]
     cfg = types.GenerateContentConfig(**cfg_kwargs)
 
     resp = client.models.generate_content(
