@@ -2,7 +2,7 @@
 """
 Evaluate Gemini Robotics-ER 1.6 for analog gauge / dial reading (e.g. Go2 inspection camera).
 
-Model: gemini-robotics-er-1.5-preview
+Model: gemini-robotics-er-1.6-preview
 Docs: https://ai.google.dev/gemini-api/docs/robotics-overview
 """
 from __future__ import annotations
@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 
-MODEL_ID = "gemini-robotics-er-1.5-preview"
+MODEL_ID = "gemini-robotics-er-1.6-preview"
 
 GAUGE_PROMPT = """You are the vision module on a Unitree Go2 quadruped doing facility inspection.
 

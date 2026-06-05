@@ -433,79 +433,6 @@ Focus on:
 Be concise but precise."""
 
 MODES = {
-    "Electric Grid Analysis": {
-        "icon": "⚡", "title": "Electric Grid Analysis", "sub": "Switchgear, panels, cables, and load indicators", "tag": "Power Systems",
-        "reasoning": """You are a transformer monitoring system specialist:
-1. INSPECTION — Identify all digital readouts, analog gauges, status LED lamps, horizontal bars, oil level indicators, tap position, and system time.
-2. READINGS — Extract numeric values from digital boxes (voltage, current, power, frequency), read needle positions on circular gauges (voltage kV, current A, oil temp °C).
-3. STATUS — Determine LED lamp states (PWR, RUN, COMM, TEMP, LOAD, OIL, PROT, ARCING, MOISTURE): green/blue=on, gray=off, red=alarm.
-4. ANOMALIES — Detect glare, blur, inactive displays, warning zones, or out-of-range indicators.
-5. JSON OUTPUT — Return structured transformer monitoring data with equipment rating, digital values, gauge readings, and anomalies.""",
-        "prompt": """You are a vision system reading a TRANSFORMER MONITORING SYSTEM dashboard (industrial HMI: digital readouts, LED status lamps, horizontal bars, circular analog gauges, oil level strip, tap selector, system clock).
-
-Task: extract every visible measurement and status from this screen as accurately as possible.
-
-Step 1 — Use code execution as needed:
-- Load the full image, then zoom/crop tight regions for: (a) the large green digital boxes (VOLTAGE, CURRENT, POWER, FREQUENCY), (b) each circular gauge (VOLTAGE kV, CURRENT A, OIL TEMP °C), (c) LOAD and TEMP horizontal bars, (d) OIL LEVEL vertical indicator, (e) TAP POSITION rotary dial, (f) top-row LED labels (PWR, RUN, COMM, TEMP, LOAD, OIL, PROT, ARCING, MOISTURE), (g) SYSTEM TIME clock, (h) footer rating text if legible.
-- Read printed digits and labels; for analog gauges, infer value from needle angle vs scale (green/yellow/red zones).
-- If a value is partly obscured or ambiguous, set approximate: true and explain in notes.
-
-Step 2 — Emit ONE JSON object only (no markdown fences, no commentary):
-
-{
-"scene_summary": "<one sentence: transformer monitoring HMI and overall health>",
-"equipment_rating": {
-"primary_voltage_kv": <number or null>,
-"secondary_voltage_v": <number or null>,
-"rated_mva": <number or null>,
-"rated_frequency_hz": <number or null>,
-"notes": "<footer text if readable>"
-},
-"digital_readouts": [
-{"name": "VOLTAGE", "value": <number>, "unit": "V", "display_text": "<exact string on screen if different>"},
-{"name": "CURRENT", "value": <number>, "unit": "A", "display_text": "<string>"},
-{"name": "POWER", "value": <number>, "unit": "MVA", "display_text": "<string>"},
-{"name": "FREQUENCY", "value": <number>, "unit": "Hz", "display_text": "<string>"}
-],
-"status_indicators": [
-{"label": "PWR|RUN|COMM|TEMP|LOAD|OIL|PROT|ARCING|MOISTURE", "state": "on|off|warning|alarm|unknown", "color": "green|blue|red|gray|yellow|unknown"}
-],
-"bars": [
-{"name": "LOAD", "percent": <number or null>, "notes": ""},
-{"name": "TEMP", "value_c": <number or null>, "notes": ""}
-],
-"oil_level": {"state": "ok|low|high|unknown", "notes": "<position between OK and MAX if visible>"},
-"tap_position": {"tap_number": <integer 1-9 or null>, "notes": ""},
-"system_time": {"display": "<exact clock string>", "notes": ""},
-"points": [
-{"point": [y, x], "label": "<e.g. DIGITAL VOLTAGE 13636 V>"}
-],
-"gauges": [
-{
-"role": "VOLTAGE_KV|CURRENT_A|OIL_TEMP_C",
-"reading": {"value": <number or null>, "unit": "<kV|A|°C>", "approximate": <true|false>},
-"needle_tip_point": [y, x],
-"dial_center_point": [y, x],
-"dial_bbox_2d": [ymin, xmin, ymax, xmax],
-"notes": ""
-}
-],
-"anomalies": ["<glare, blur, inactive alarm buttons, etc.>"]
-}
-
-Spatial rules (ORIGINAL full-frame image):
-- Coordinates are integers in [0, 1000]; points use [y, x]; dial_bbox_2d is [ymin, xmin, ymax, xmax].
-- Map crop coordinates back to the original image.
-- Include one gauge entry per circular dial (voltage, current, oil temperature).
-- Use points for centers of major digital readout boxes (one point per readout is enough).
-
-Parsing hints for this UI style:
-- Digital boxes may use commas in numbers (e.g. 13,636 V) — store numeric value without commas.
-- POWER may show as MVA (e.g. 3.0 MVA).
-- Horizontal TEMP bar may show °C at the marker (e.g. 70°C).
-- TAP dial: read the highlighted tap number (e.g. TAP 5).
-- LED row: report on/off from lamp color (green/blue = active, gray = inactive)."""
-    },
     "Gauge Reader": {
         "icon": "🔌", "title": "Gauge Reader", "sub": "Analog gauges, dials & panels", "tag": "Robotics / ER1.6",
         "reasoning": GAUGE_SYSTEM_INSTRUCTION,
@@ -572,10 +499,9 @@ Return ONLY valid JSON:
     },
 }
 
-DEFAULT_QC_MODEL_ID = "gemini-3-flash-preview"
+DEFAULT_QC_MODEL_ID = "gemini-3.5-pro"
 PREVIEW_QC_MODEL_ID = "gemini-3-flash-preview"
 QC_MODEL_ID = os.environ.get("QC_MODEL_ID", DEFAULT_QC_MODEL_ID).strip() or DEFAULT_QC_MODEL_ID
-ELECTRIC_GRID_MODEL_ID = "gemini-robotics-er-1.5-preview"
 
 SEV_COLORS = {
     "CRITICAL": ("#dc2626", (220, 38, 38)),
@@ -702,92 +628,6 @@ def render_reasoning(steps):
     st.markdown(html + "</div>", unsafe_allow_html=True)
 
 
-def render_electric_grid_data(data: Dict):
-    """Render Electric Grid Analysis transformer monitoring data."""
-    # Equipment Rating
-    rating = data.get("equipment_rating", {})
-    if rating:
-        st.markdown('<div class="sec-head">⚙️ Equipment Rating</div>', unsafe_allow_html=True)
-        rating_html = '<div class="stats-row">'
-        if rating.get("primary_voltage_kv"):
-            rating_html += f'<div class="stat-card"><div class="stat-num">{rating["primary_voltage_kv"]}</div><div class="stat-lbl">Primary (kV)</div></div>'
-        if rating.get("secondary_voltage_v"):
-            rating_html += f'<div class="stat-card"><div class="stat-num">{rating["secondary_voltage_v"]}</div><div class="stat-lbl">Secondary (V)</div></div>'
-        if rating.get("rated_mva"):
-            rating_html += f'<div class="stat-card"><div class="stat-num">{rating["rated_mva"]}</div><div class="stat-lbl">Rated MVA</div></div>'
-        if rating.get("rated_frequency_hz"):
-            rating_html += f'<div class="stat-card"><div class="stat-num">{rating["rated_frequency_hz"]}</div><div class="stat-lbl">Frequency (Hz)</div></div>'
-        rating_html += '</div>'
-        st.markdown(rating_html, unsafe_allow_html=True)
-    
-    # Digital Readouts
-    readouts = data.get("digital_readouts", [])
-    if readouts:
-        st.markdown('<div class="sec-head">📊 Digital Readouts</div>', unsafe_allow_html=True)
-        for ro in readouts:
-            val = ro.get("value", "—")
-            unit = ro.get("unit", "")
-            name = ro.get("name", "")
-            st.markdown(f'<div style="padding:8px;background:#f9fafb;border-radius:6px;margin:4px 0;font-size:12px;"><b>{name}</b>: {val} {unit}</div>', unsafe_allow_html=True)
-    
-    # Status Indicators
-    status = data.get("status_indicators", [])
-    if status:
-        st.markdown('<div class="sec-head">🔴 Status Indicators</div>', unsafe_allow_html=True)
-        status_html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">'
-        for s in status:
-            label = s.get("label", "")
-            state = s.get("state", "unknown")
-            color_map = {"on": "#22c55e", "off": "#9ca3af", "warning": "#eab308", "alarm": "#ef4444", "unknown": "#9ca3af"}
-            color = color_map.get(state, "#9ca3af")
-            status_html += f'<div style="padding:6px;background:{color}20;border-left:3px solid {color};border-radius:4px;font-size:11px;"><b>{label}</b>: {state}</div>'
-        status_html += '</div>'
-        st.markdown(status_html, unsafe_allow_html=True)
-    
-    # Gauges
-    gauges = data.get("gauges", [])
-    if gauges:
-        st.markdown('<div class="sec-head">📈 Analog Gauges</div>', unsafe_allow_html=True)
-        for g in gauges:
-            role = g.get("role", "Unknown")
-            reading = g.get("reading", {})
-            val = reading.get("value", "—")
-            unit = reading.get("unit", "")
-            st.markdown(f'<div style="padding:8px;background:#f0f9ff;border-left:3px solid #3b82f6;border-radius:6px;margin:4px 0;font-size:12px;"><b>{role}</b>: {val} {unit}</div>', unsafe_allow_html=True)
-    
-    # Bars
-    bars = data.get("bars", [])
-    if bars:
-        st.markdown('<div class="sec-head">📊 Indicators</div>', unsafe_allow_html=True)
-        for b in bars:
-            name = b.get("name", "")
-            percent = b.get("percent", b.get("value_c"))
-            if percent is not None:
-                bar_pct = int(min(100, max(0, percent)))
-                st.markdown(f'<div style="margin:8px 0;"><div style="font-size:11px;margin-bottom:4px;"><b>{name}</b>: {percent}</div><div style="background:#e5e7eb;border-radius:4px;height:6px;overflow:hidden;"><div style="background:#3b82f6;height:100%;width:{bar_pct}%"></div></div></div>', unsafe_allow_html=True)
-    
-    # Oil Level & Tap Position
-    st.markdown('<div class="sec-head">⚡ System Status</div>', unsafe_allow_html=True)
-    sys_html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">'
-    oil = data.get("oil_level", {})
-    if oil:
-        oil_state = oil.get("state", "unknown")
-        sys_html += f'<div style="padding:10px;background:#fef3c7;border-radius:6px;font-size:12px;"><b>Oil Level</b>: {oil_state}</div>'
-    tap = data.get("tap_position", {})
-    if tap:
-        tap_num = tap.get("tap_number", "—")
-        sys_html += f'<div style="padding:10px;background:#dbeafe;border-radius:6px;font-size:12px;"><b>Tap Position</b>: {tap_num}</div>'
-    sys_html += '</div>'
-    st.markdown(sys_html, unsafe_allow_html=True)
-    
-    # Anomalies
-    anomalies = data.get("anomalies", [])
-    if anomalies:
-        st.markdown('<div class="sec-head">⚠️ Anomalies</div>', unsafe_allow_html=True)
-        for anom in anomalies:
-            st.markdown(f'<div style="padding:8px;background:#fee2e2;border-left:3px solid #ef4444;border-radius:4px;margin:4px 0;font-size:12px;">• {anom}</div>', unsafe_allow_html=True)
-
-
 # ── Sidebar ────────────────────────────────────────────────────────────────────
 with st.sidebar:
     st.markdown("### ⚙️ Configuration")
@@ -802,7 +642,7 @@ with st.sidebar:
     if not _get_env_key("GEMINI_API_KEY_2", ["GOOGLE_API_KEY", "GENAI_API_KEY"]):
         st.warning("Missing `GEMINI_API_KEY_2` or fallback API key (used for PCB + Label & Packaging).")
     st.caption("Locked models:")
-    st.caption("- Gauge Reader: `gemini-robotics-er-1.5-preview`")
+    st.caption("- Gauge Reader: `gemini-robotics-er-1.6-preview`")
     st.caption(f"- PCB/Label: `{QC_MODEL_ID}` (override with QC_MODEL_ID env var)")
 
     st.markdown("---")
@@ -811,16 +651,9 @@ with st.sidebar:
                                help="Passes thinking_budget to the model for deeper gauge analysis.")
     thinking_budget = st.slider("Thinking budget", 0, 24576, 8192, 256, disabled=not use_thinking)
     temperature_gauge = st.slider("Temperature (Gauge)", 0.0, 1.0, 0.3, 0.05)
-    gauge_prompt_mode = st.radio("Use Gauge JSON Prompt",
+    gauge_prompt_mode = st.radio("Gauge prompt mode",
                                  ["Gauge JSON (structured)", "Scene Description (freeform)"],
                                  help="JSON mode returns parseable gauge readings with bboxes. Scene mode returns a freeform inspection description.")
-
-    st.markdown("---")
-    st.markdown("### ⚡ Electric Grid Analysis Settings")
-    grid_prompt_mode = st.radio("Use Electric Grid JSON Prompt",
-                                ["Transformer JSON (structured)", "Scene Description (freeform)"],
-                                help="JSON mode returns transformer monitoring data with digital readouts, gauges, and status indicators. Scene mode returns a freeform inspection description.")
-    temperature_grid = st.slider("Temperature (Grid)", 0.0, 1.0, 0.3, 0.05)
 
     st.markdown("---")
     if st.button("List Available Models"):
@@ -1052,16 +885,13 @@ if run and image:
 
     # ── Standard QC path (PCB, Label, etc.) ───────────────────────────────────
     else:
-        # Select model based on inspection mode
-        inspection_model_id = ELECTRIC_GRID_MODEL_ID if mode_key == "Electric Grid Analysis" else QC_MODEL_ID
-        
         with st.spinner(f"🧠 Phase 1 — {mode_cfg['title']} reasoning trace…"):
             try:
                 r1 = _generate_content_with_fallback(
                     client,
                     [types.Part.from_bytes(data=img_bytes, mime_type=mime), mode_cfg["reasoning"]],
                     types.GenerateContentConfig(temperature=0.3),
-                    inspection_model_id,
+                    QC_MODEL_ID,
                 )
             except Exception as e:
                 st.error(f"Gemini API error (Phase 1): {_format_api_error(e)}")
@@ -1082,7 +912,7 @@ if run and image:
                     client,
                     [types.Part.from_bytes(data=img_bytes, mime_type=mime), mode_cfg["prompt"]],
                     types.GenerateContentConfig(temperature=0.1),
-                    inspection_model_id,
+                    QC_MODEL_ID,
                 )
             except Exception as e:
                 st.error(f"Gemini API error (Phase 2): {_format_api_error(e)}")
@@ -1098,29 +928,23 @@ if run and image:
                 with right_col:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
                     st.image(draw_qc_annotations(image, data), width=700)
-                    
-                    if mode_key == "Electric Grid Analysis":
-                        st.markdown('<div class="sec-head">⚡ Transformer Monitoring Data</div>', unsafe_allow_html=True)
-                        render_electric_grid_data(data)
+                    if "summary" in data:
+                        st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
+                        padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
+                        📋 {data['summary']}</div>""", unsafe_allow_html=True)
+
+                    render_verdict(data.get("verdict", "REVIEW"), data.get("verdict_reason", "Done."),
+                                   data.get("overall_quality_score", 0))
+                    render_stats(data.get("defects", []))
+
+                    st.markdown('<div class="sec-head">Defect Report</div>', unsafe_allow_html=True)
+                    defects = data.get("defects", [])
+                    if defects:
+                        render_cards(defects)
                     else:
-                        # PCB / Label rendering
-                        if "summary" in data:
-                            st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
-                            padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
-                            📋 {data['summary']}</div>""", unsafe_allow_html=True)
-
-                        render_verdict(data.get("verdict", "REVIEW"), data.get("verdict_reason", "Done."),
-                                       data.get("overall_quality_score", 0))
-                        render_stats(data.get("defects", []))
-
-                        st.markdown('<div class="sec-head">Defect Report</div>', unsafe_allow_html=True)
-                        defects = data.get("defects", [])
-                        if defects:
-                            render_cards(defects)
-                        else:
-                            st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
-                                padding:16px;text-align:center;color:#15803d;font-weight:600;">✅ No defects detected</div>""",
-                                        unsafe_allow_html=True)
+                        st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
+                            padding:16px;text-align:center;color:#15803d;font-weight:600;">✅ No defects detected</div>""",
+                                    unsafe_allow_html=True)
 
                     st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>',
                                 unsafe_allow_html=True)
@@ -1132,29 +956,23 @@ if run and image:
                 with ic:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
                     st.image(draw_qc_annotations(image, data), width=700)
+                    if "summary" in data:
+                        st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
+                        padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
+                        📋 {data['summary']}</div>""", unsafe_allow_html=True)
+
+                    render_verdict(data.get("verdict", "REVIEW"), data.get("verdict_reason", "Done."),
+                                   data.get("overall_quality_score", 0))
+                    render_stats(data.get("defects", []))
                 with cc:
-                    if mode_key == "Electric Grid Analysis":
-                        st.markdown('<div class="sec-head">⚡ Transformer Monitoring Data</div>', unsafe_allow_html=True)
-                        render_electric_grid_data(data)
+                    st.markdown('<div class="sec-head">Defect Report</div>', unsafe_allow_html=True)
+                    defects = data.get("defects", [])
+                    if defects:
+                        render_cards(defects)
                     else:
-                        # PCB / Label rendering
-                        if "summary" in data:
-                            st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
-                            padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
-                            📋 {data['summary']}</div>""", unsafe_allow_html=True)
-
-                        render_verdict(data.get("verdict", "REVIEW"), data.get("verdict_reason", "Done."),
-                                       data.get("overall_quality_score", 0))
-                        render_stats(data.get("defects", []))
-
-                        st.markdown('<div class="sec-head">Defect Report</div>', unsafe_allow_html=True)
-                        defects = data.get("defects", [])
-                        if defects:
-                            render_cards(defects)
-                        else:
-                            st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
-                                padding:16px;text-align:center;color:#15803d;font-weight:600;">✅ No defects detected</div>""",
-                                        unsafe_allow_html=True)
+                        st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
+                            padding:16px;text-align:center;color:#15803d;font-weight:600;">✅ No defects detected</div>""",
+                                    unsafe_allow_html=True)
                 st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>',
                             unsafe_allow_html=True)
                 with st.expander("🧠 View full reasoning trace", expanded=False):
