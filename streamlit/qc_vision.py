@@ -822,6 +822,21 @@ with st.sidebar:
                                 help="JSON mode returns transformer monitoring data with digital readouts, gauges, and status indicators. Scene mode returns a freeform inspection description.")
     temperature_grid = st.slider("Temperature (Grid)", 0.0, 1.0, 0.3, 0.05)
 
+    st.subheader("Live Capture Source")
+    live_api_base = st.text_input(
+        "Live capture API URL",
+        value="http://127.0.0.1:8091",
+        key="qc_live_api_base",
+    )
+    live_timeout = st.slider(
+        "Live fetch timeout (sec)",
+        min_value=1.0,
+        max_value=15.0,
+        value=5.0,
+        step=0.5,
+        key="qc_live_timeout",
+    )
+
     st.markdown("---")
     if st.button("List Available Models"):
         key2 = _get_env_key("GEMINI_API_KEY_2", ["GOOGLE_API_KEY", "GENAI_API_KEY"])
@@ -907,62 +922,97 @@ def _collect_images_from_static(root: Path) -> List[str]:
     static_dir = root / "static"
     if static_dir.exists():
         for f in sorted(static_dir.iterdir()):
-            if f.is_file() and f.suffix.lower() in (".jpg", ".jpeg", ".png"):
+            if f.is_file() and f.suffix.lower() in (".jpg", ".jpeg", ".png", ".webp"):
                 imgs.append(str(f.resolve()))
     return imgs
+
+
+def _fetch_live_frame(api_base: str, timeout_sec: float) -> bytes:
+    url = api_base.rstrip("/") + "/frame/latest.jpg"
+    resp = requests.get(url, timeout=timeout_sec)
+    resp.raise_for_status()
+    return resp.content
 
 sample_images = _collect_images_from_static(img_root)
 
 with left_col:
-    # ── Sample image selector (static-only) ─────────────────────────────────
-    selection: Optional[str] = None
-    if sample_images:
-        display_names = [Path(p).name for p in sample_images]
-        chosen_idx = st.selectbox(
-            "Select a sample image",
-            range(len(sample_images)),
-            format_func=lambda i: display_names[i],
+    st.markdown('<p class="section-label">Image input</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        source = st.radio(
+            "Select source",
+            options=["Gallery", "Upload", "Live Capture"],
+            horizontal=True,
+            key="qc_source",
         )
-        selection = sample_images[chosen_idx]
-    else:
-        st.info("No sample images found in `static/`. Add image files to static/ to use this app.")
 
-    # ── Resolve final image bytes ──────────────────────────────────────────────
-    img_bytes: Optional[bytes] = None
-    uploaded_name: Optional[str] = None
-    image: Optional[Image.Image] = None
+        selected_name = "image"
+        img_bytes: Optional[bytes] = None
+        uploaded_name: Optional[str] = None
+        image: Optional[Image.Image] = None
+        mime = "image/jpeg"
 
-    if selection:
-        # selection is an absolute path (collected from streamlit folder roots)
-        sel_path = Path(selection)
-
-        # Fallback: if somehow selection is not a file, try common locations
-        if not sel_path.is_file():
-            alt = img_root / Path(selection).name
-            if alt.is_file():
-                sel_path = alt
+        if source == "Gallery":
+            if not sample_images:
+                st.warning("No sample images found in `static/`. Add image files to static/ to use this app.")
             else:
-                alt2 = Path.cwd() / Path(selection).name
-                if alt2.is_file():
-                    sel_path = alt2
+                display_names = [Path(p).name for p in sample_images]
+                selected = st.selectbox("Sample image", display_names, index=0, key="qc_sample_image")
+                sel_path = Path(sample_images[display_names.index(selected)])
+                if sel_path.is_file():
+                    img_bytes = sel_path.read_bytes()
+                    uploaded_name = sel_path.name
+                    image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                    mime = "image/png" if sel_path.suffix.lower() == ".png" else "image/jpeg"
+                    st.image(image, caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px", width=700)
+                else:
+                    st.warning(f"Sample image not found on disk: `{sel_path}`")
 
-        if not sel_path.is_file():
-            st.warning(f"Sample image not found on disk: `{selection}`")
-        else:
-            try:
-                img_bytes = sel_path.read_bytes()
-                uploaded_name = sel_path.name
+        elif source == "Upload":
+            up = st.file_uploader(
+                "Upload image",
+                type=["jpg", "jpeg", "png", "webp"],
+                key="qc_upload_image",
+            )
+            if up is not None:
+                img_bytes = up.read()
+                uploaded_name = up.name or "upload.jpg"
                 image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-                st.image(image,
-                         caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
-                         width=700)
-            except Exception as e:
-                st.error(f"Could not open {sel_path}")
-                st.exception(e)
+                mime = up.type or "image/jpeg"
+                st.image(image, caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px", width=700)
 
-    st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
-    run = st.button("▶ Run Inspection", key="run_btn")
+        else:
+            c1, c2 = st.columns([1, 2])
+            with c1:
+                fetch_live = st.button("Fetch Live Frame", type="primary", key="qc_fetch_live")
+            with c2:
+                health_clicked = st.button("Check Capture API", key="qc_check_health")
 
+            if health_clicked:
+                try:
+                    r = requests.get(live_api_base.rstrip("/") + "/health", timeout=live_timeout)
+                    r.raise_for_status()
+                    st.success("Capture API OK: %s" % r.json())
+                except Exception as e:
+                    st.error("Capture API check failed: %s" % (e,))
+
+            if fetch_live:
+                try:
+                    img_bytes = _fetch_live_frame(live_api_base, timeout_sec=live_timeout)
+                    uploaded_name = "live_capture.jpg"
+                    mime = "image/jpeg"
+                    image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                    st.image(image, caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px", width=700)
+                except Exception as e:
+                    st.error("Live frame fetch failed: %s" % (e,))
+
+        st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
+        run = st.button("▶ Run Inspection", key="run_btn")
+
+with right_col:
+    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        if not run:
+            st.info("Run an inspection to see results here.")
 
 st.markdown("---")
 
@@ -1128,14 +1178,16 @@ if run and image:
                         render_reasoning(steps)
 
             except Exception:
-                ic, cc = st.columns([3, 2])
-                with ic:
+                with right_col:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
                     st.image(draw_qc_annotations(image, data), width=700)
-                with cc:
+
                     if mode_key == "Electric Grid Analysis":
                         st.markdown('<div class="sec-head">⚡ Transformer Monitoring Data</div>', unsafe_allow_html=True)
-                        render_electric_grid_data(data)
+                        try:
+                            render_electric_grid_data(data)
+                        except Exception:
+                            st.warning("Could not render transformer monitoring data.")
                     else:
                         # PCB / Label rendering
                         if "summary" in data:
