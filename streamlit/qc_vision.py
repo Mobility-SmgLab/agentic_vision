@@ -14,9 +14,9 @@ except Exception:
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 st.set_page_config(
-    page_title="Visio · Manufacturing Intelligence",
+    page_title="Vision AI · Manufacturing Intelligence",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    
 )
 
 st.markdown("""
@@ -300,9 +300,6 @@ def _mask_key(k: str) -> str:
 
 # ── Robust image directory finder ─────────────────────────────────────────────
 def _find_images_dir(subdir: str) -> Optional[Path]:
-    # Always resolve relative to THIS file (qc_vision.py)
-    # so streamlit/static/ is found regardless of where
-    # the process is launched from (Render, Docker, local).
     here = Path(__file__).resolve().parent   # → .../streamlit/
     p = here / subdir
     if p.is_dir():
@@ -871,77 +868,11 @@ def render_electric_grid_data(data: Dict):
             st.markdown(f'<div style="padding:8px;background:#fee2e2;border-left:3px solid #ef4444;border-radius:4px;margin:4px 0;font-size:12px;">• {anom}</div>', unsafe_allow_html=True)
 
 
-# ── Sidebar ────────────────────────────────────────────────────────────────────
-with st.sidebar:
-    st.markdown("### ⚙️ Configuration")
-    st.caption("API keys are taken from `.env`/environment variables.")
-    with st.expander("API key status", expanded=False):
-        st.caption(f".env path: `{str(ENV_FILE_PATH)}`")
-        st.caption(f".env exists: `{ENV_FILE_PATH.is_file()}`")
-        st.caption(f"GEMINI_API_KEY_1/GOOGLE_API_KEY/GENAI_API_KEY: `{_mask_key(_get_env_key('GEMINI_API_KEY_1', ['GOOGLE_API_KEY', 'GENAI_API_KEY']))}`")
-        st.caption(f"GEMINI_API_KEY_2/GOOGLE_API_KEY/GENAI_API_KEY: `{_mask_key(_get_env_key('GEMINI_API_KEY_2', ['GOOGLE_API_KEY', 'GENAI_API_KEY']))}`")
-    if not _get_env_key("GEMINI_API_KEY_1", ["GOOGLE_API_KEY", "GENAI_API_KEY"]):
-        st.warning("Missing `GEMINI_API_KEY_1` or fallback API key (used for Gauge Reader).")
-    if not _get_env_key("GEMINI_API_KEY_2", ["GOOGLE_API_KEY", "GENAI_API_KEY"]):
-        st.warning("Missing `GEMINI_API_KEY_2` or fallback API key (used for PCB + Label & Packaging).")
-    st.caption("Locked models:")
-    st.caption("- Gauge Reader: `gemini-robotics-er-1.5-preview`")
-    st.caption(f"- PCB/Label: `{QC_MODEL_ID}` (override with QC_MODEL_ID env var)")
-
-    selected_mode = st.session_state.get("mode", "Electric Grid Analysis")
-
-    if selected_mode == "Gauge Reader":
-        st.markdown("---")
-        st.markdown("### 🔭 Gauge Reader Settings")
-        use_thinking = st.checkbox("Enable thinking config (ER1.6)", value=True,
-                                   help="Passes thinking_budget to the model for deeper gauge analysis.")
-        thinking_budget = st.slider("Thinking budget", 0, 24576, 8192, 256, disabled=not use_thinking)
-        temperature_gauge = st.slider("Temperature (Gauge)", 0.0, 1.0, 0.3, 0.05)
-        gauge_prompt_mode = st.radio("Use Gauge JSON Prompt",
-                                     ["Gauge JSON (structured)", "Scene Description (freeform)"],
-                                     help="JSON mode returns parseable gauge readings with bboxes. Scene mode returns a freeform inspection description.")
-    elif selected_mode == "Electric Grid Analysis":
-        st.markdown("---")
-        st.markdown("### ⚡ Electric Grid Analysis Settings")
-        grid_prompt_mode = st.radio("Use Electric Grid JSON Prompt",
-                                    ["Transformer JSON (structured)", "Scene Description (freeform)"],
-                                    help="JSON mode returns transformer monitoring data with digital readouts, gauges, and status indicators. Scene mode returns a freeform inspection description.")
-        temperature_grid = st.slider("Temperature (Grid)", 0.0, 1.0, 0.3, 0.05)
-    else:
-        st.markdown("---")
-        st.markdown("### Mode-specific settings")
-        st.caption("Select Electric Grid Analysis or Gauge Reader to see more options.")
-
-    st.markdown("---")
-    if st.button("List Available Models"):
-        key2 = _get_env_key("GEMINI_API_KEY_2", ["GOOGLE_API_KEY", "GENAI_API_KEY"])
-        if key2:
-            try:
-                c = genai.Client(api_key=key2)
-                st.code("\n".join(m.name for m in c.models.list() if hasattr(m, "name")))
-            except Exception as e:
-                st.error(_format_api_error(e))
-
-    st.markdown("---")
-
-    # Path debug — helpful when diagnosing Render deployment issues
-    with st.expander("🗂 Path debug", expanded=False):
-        st.caption(f"**`__file__`**: `{Path(__file__).resolve()}`")
-        st.caption(f"**cwd**: `{Path.cwd()}`")
-        for sd in ("static"):
-            found = _find_images_dir(sd)
-            st.caption(f"**{sd}/**: `{found or 'not found'}`")
-
-    st.markdown("---")
-    st.markdown("### ℹ️ About")
-    st.caption("Visio uses Gemini agentic vision. Gauge Reader uses ER1.6 code-execution + thinking for precise dial readings with annotated bboxes, needle tips, and structured output.")
-
-
 # ── Top bar ────────────────────────────────────────────────────────────────────
 st.markdown("""
 <div class="topbar">
   <div class="topbar-brand">
-    <span class="topbar-logo">VISIO</span>
+    <span class="topbar-logo">VISION AI</span>
     <span class="topbar-wordmark">· Manufacturing Intelligence</span>
     <span class="topbar-sub">Agentic Vision QC</span>
   </div>

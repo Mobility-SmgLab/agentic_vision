@@ -457,9 +457,7 @@ def _inject_app_styles() -> None:
 header[data-testid="stHeader"] {
   z-index: var(--er16-chrome-z) !important;
 }
-section[data-testid="stSidebar"] {
-  z-index: calc(var(--er16-chrome-z) - 1) !important;
-}
+
 [data-testid="collapsedControl"] {
   z-index: calc(var(--er16-chrome-z) - 1) !important;
 }
@@ -727,44 +725,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
     images_dir = Path(__file__).resolve().parent / "static"
     gallery_images = _load_gallery_images(images_dir)
 
-    with st.sidebar:
-        st.subheader("Model")
-        st.caption(f"Locked model: `{MODEL_ID}`")
-        annotation_scale = st.slider(
-            "Annotation scale",
-            min_value=0.8,
-            max_value=2.5,
-            value=1.4,
-            step=0.1,
-            help="Scales label text, line thickness, and point markers on the annotated result image.",
-            key=f"{key_prefix}annotation_scale",
-        )
-        use_thinking = st.checkbox(
-            "Thinking config",
-            value=True,
-            help="Same as booth demo: when off, thinking_config is omitted.",
-            key=f"{key_prefix}use_thinking",
-        )
-        thinking_budget = st.slider(
-            "Thinking budget",
-            min_value=0,
-            max_value=24576,
-            value=8192,
-            step=256,
-            disabled=not use_thinking,
-            key=f"{key_prefix}thinking_budget",
-        )
-        temperature = st.slider(
-            "Temperature",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.3,
-            step=0.05,
-            key=f"{key_prefix}temperature",
-        )
-        st.subheader("Camera Capture")
-        st.caption("Use your attached system camera to capture a live frame directly in the browser.")
-
+    
     if prompt_key not in st.session_state:
         st.session_state[prompt_key] = DEFAULT_PROMPT_GAUGE_JSON
 
