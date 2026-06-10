@@ -893,7 +893,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
         st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
         with st.container(border=True):
             if last_overlay:
-                st.image(last_overlay, caption="Annotated overlay", use_container_width=True)
+                st.image(last_overlay, caption="Annotated overlay", use_column_width=True)
                 st.download_button(
                     "Download annotated PNG",
                     last_overlay,

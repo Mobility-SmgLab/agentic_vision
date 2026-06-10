@@ -1111,7 +1111,7 @@ if run and image:
             with annotated_col:
                 st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
                 with st.container(border=True):
-                    st.image(image, use_container_width=True)
+                    st.image(image, use_column_width=True)
             with cards_col:
                 st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
                 with st.container(border=True):
@@ -1132,7 +1132,7 @@ if run and image:
                     st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
                     with st.container(border=True):
                         annotated = draw_gauge_annotations(image, parsed)
-                        st.image(annotated, use_container_width=True)
+                        st.image(annotated, use_column_width=True)
                         buf = io.BytesIO()
                         annotated.save(buf, format="PNG")
                         st.download_button(
@@ -1221,7 +1221,7 @@ if run and image:
                     st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
                     with st.container(border=True):
                         annotated = draw_qc_annotations(image, data)
-                        st.image(annotated, use_container_width=True)
+                        st.image(annotated, use_column_width=True)
                         buf = io.BytesIO()
                         annotated.save(buf, format="PNG")
                         st.download_button(
@@ -1255,7 +1255,7 @@ if run and image:
                 with annotated_col:
                     st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
                     with st.container(border=True):
-                        st.image(draw_qc_annotations(image, data), use_container_width=True)
+                        st.image(draw_qc_annotations(image, data), use_column_width=True)
 
                 with cards_col:
                     st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
@@ -1285,7 +1285,7 @@ if run and image:
                 with annotated_col:
                     st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
                     with st.container(border=True):
-                        st.image(image, use_container_width=True)
+                        st.image(image, use_column_width=True)
                 with cards_col:
                     st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
                     with st.container(border=True):
