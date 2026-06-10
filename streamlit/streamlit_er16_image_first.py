@@ -729,6 +729,11 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
     if prompt_key not in st.session_state:
         st.session_state[prompt_key] = DEFAULT_PROMPT_GAUGE_JSON
 
+    use_thinking = True
+    thinking_budget = 8192
+    temperature = 0.3
+    annotation_scale = 1.0
+
     # Layout: Input (left) + Annotated (middle) + Result (right)
     # Wider panes so images render larger and use whitespace better.
     left, annotated_col, right = st.columns([1.25, 1.25, 1.0], gap="large")
