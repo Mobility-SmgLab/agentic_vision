@@ -1221,7 +1221,7 @@ with annotated_col:
     with st.container(border=True):
         ann = st.session_state.get("qc_ann_image")
         if ann is not None:
-            st.image(ann, use_container_width=True)
+            st.image(ann, use_column_width=True)
             dl = st.session_state.get("qc_ann_dl")
             if dl:
                 st.download_button(
