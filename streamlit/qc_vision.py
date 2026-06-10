@@ -1044,24 +1044,8 @@ with input_col:
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         run = st.button("▶ Run Inspection", key="run_btn")
 
-       
 
-with annotated_col:
-    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
-    with st.container(border=True):
-        if not run:
-            st.info("Run an inspection to see the annotated image here.")
-
-with cards_col:
-    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
-    with st.container(border=True):
-        # Results / cards will be populated after running an inspection
-        pass
-
-st.markdown("---")
-
-
-# ── Execute ────────────────────────────────────────────────────────────────────
+# ── Execute (persist results; columns render once below) ───────────────────────
 use_thinking = USE_GAUGE_THINKING
 thinking_budget = GAUGE_THINKING_BUDGET
 temperature_gauge = GAUGE_TEMPERATURE
@@ -1108,57 +1092,37 @@ if run and image:
                 st.stop()
 
         if "Scene" in gauge_prompt_mode:
-            with annotated_col:
-                st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
-                with st.container(border=True):
-                    st.image(image, use_column_width=True)
-            with cards_col:
-                st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
-                with st.container(border=True):
-                    st.markdown(f'<div class="scene-summary">🤖 {raw_text}</div>', unsafe_allow_html=True)
-            with st.expander("Raw model output", expanded=False):
-                st.code(raw_text)
+            st.session_state["qc_ann_image"] = image
+            st.session_state["qc_ann_dl"] = None
+            st.session_state["qc_scene_text"] = raw_text
+            st.session_state["qc_data"] = None
+            st.session_state["qc_show_qc_extras"] = False
+            st.session_state["qc_show_gauge_extras"] = False
+            st.session_state["qc_gauge_raw"] = raw_text
         else:
             parsed = _extract_first_json_object(raw_text)
 
             if parsed is None:
-                with cards_col:
-                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
-                    with st.container(border=True):
-                        st.warning("Could not parse JSON from model response. Showing raw output.")
-                        st.code(raw_text)
+                st.session_state["qc_ann_image"] = None
+                st.session_state["qc_ann_dl"] = None
+                st.session_state["qc_scene_text"] = None
+                st.session_state["qc_data"] = None
+                st.session_state["qc_result_error"] = raw_text
+                st.session_state["qc_show_qc_extras"] = False
+                st.session_state["qc_show_gauge_extras"] = False
             else:
-                with annotated_col:
-                    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
-                    with st.container(border=True):
-                        annotated = draw_gauge_annotations(image, parsed)
-                        st.image(annotated, use_column_width=True)
-                        buf = io.BytesIO()
-                        annotated.save(buf, format="PNG")
-                        st.download_button(
-                            "⬇ Download Annotated PNG",
-                            data=buf.getvalue(),
-                            file_name="gauge_annotated.png",
-                            mime="image/png",
-                        )
-
-                with cards_col:
-                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
-                    with st.container(border=True):
-                        gauges = parsed.get("gauges") or []
-                        if gauges:
-                            render_gauge_cards(gauges)
-                        else:
-                            st.info("No gauges detected in the response.")
-
-                with st.expander("Inspection summary & details", expanded=False):
-                    summary = parsed.get("scene_summary", "")
-                    if summary:
-                        st.markdown(f'<div class="scene-summary">🤖 {summary}</div>', unsafe_allow_html=True)
-                    render_gauge_stats(parsed)
-                    st.markdown("**Full JSON**")
-                    st.code(json.dumps(parsed, indent=2, ensure_ascii=False), language="json")
-                    st.text_area("Raw response", value=raw_text, height=300)
+                annotated = draw_gauge_annotations(image, parsed)
+                buf = io.BytesIO()
+                annotated.save(buf, format="PNG")
+                st.session_state["qc_ann_image"] = annotated
+                st.session_state["qc_ann_dl"] = (buf.getvalue(), "gauge_annotated.png")
+                st.session_state["qc_scene_text"] = None
+                st.session_state["qc_data"] = parsed
+                st.session_state["qc_mode"] = mode_key
+                st.session_state["qc_result_error"] = None
+                st.session_state["qc_show_qc_extras"] = False
+                st.session_state["qc_show_gauge_extras"] = True
+                st.session_state["qc_gauge_raw"] = raw_text
 
     # ── Standard QC path (PCB, Label, etc.) ───────────────────────────────────
     else:
@@ -1217,82 +1181,31 @@ if run and image:
             data = json.loads(raw.strip())
 
             try:
-                with annotated_col:
-                    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
-                    with st.container(border=True):
-                        annotated = draw_qc_annotations(image, data)
-                        st.image(annotated, use_column_width=True)
-                        buf = io.BytesIO()
-                        annotated.save(buf, format="PNG")
-                        st.download_button(
-                            "⬇ Download Annotated PNG",
-                            data=buf.getvalue(),
-                            file_name="annotated.png",
-                            mime="image/png",
-                        )
-
-                with cards_col:
-                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
-                    with st.container(border=True):
-                        if mode_key == "Electric Grid Analysis":
-                            render_electric_grid_data(data)
-                        else:
-                            defects = data.get("defects", [])
-                            if defects:
-                                render_cards(defects)
-                            else:
-                                st.markdown(
-                                    """<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
-                                    padding:16px;text-align:center;color:#15803d;font-weight:600;">
-                                    ✅ No defects detected</div>""",
-                                    unsafe_allow_html=True,
-                                )
-
-                with st.expander("Inspection summary & agent reasoning", expanded=False):
-                    _render_qc_extras(data, steps, mode_key)
-
+                annotated = draw_qc_annotations(image, data)
+                buf = io.BytesIO()
+                annotated.save(buf, format="PNG")
+                st.session_state["qc_ann_image"] = annotated
+                st.session_state["qc_ann_dl"] = (buf.getvalue(), "annotated.png")
             except Exception:
-                with annotated_col:
-                    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
-                    with st.container(border=True):
-                        st.image(draw_qc_annotations(image, data), use_column_width=True)
+                st.session_state["qc_ann_image"] = draw_qc_annotations(image, data)
+                st.session_state["qc_ann_dl"] = None
 
-                with cards_col:
-                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
-                    with st.container(border=True):
-                        if mode_key == "Electric Grid Analysis":
-                            try:
-                                render_electric_grid_data(data)
-                            except Exception:
-                                st.warning("Could not render transformer monitoring data.")
-                        else:
-                            defects = data.get("defects", [])
-                            if defects:
-                                render_cards(defects)
-                            else:
-                                st.markdown(
-                                    """<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
-                                    padding:16px;text-align:center;color:#15803d;font-weight:600;">
-                                    ✅ No defects detected</div>""",
-                                    unsafe_allow_html=True,
-                                )
-
-                with st.expander("Inspection summary & agent reasoning", expanded=False):
-                    _render_qc_extras(data, steps, mode_key)
+            st.session_state["qc_scene_text"] = None
+            st.session_state["qc_data"] = data
+            st.session_state["qc_steps"] = steps
+            st.session_state["qc_mode"] = mode_key
+            st.session_state["qc_result_error"] = None
+            st.session_state["qc_show_qc_extras"] = True
+            st.session_state["qc_show_gauge_extras"] = False
 
         except json.JSONDecodeError as e:
             if mode_key == "Electric Grid Analysis" and "Scene" in st.session_state.get("grid_prompt_mode", ""):
-                with annotated_col:
-                    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
-                    with st.container(border=True):
-                        st.image(image, use_column_width=True)
-                with cards_col:
-                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
-                    with st.container(border=True):
-                        st.markdown(
-                            f'<div class="scene-summary">🤖 {r2.text.strip()}</div>',
-                            unsafe_allow_html=True,
-                        )
+                st.session_state["qc_ann_image"] = image
+                st.session_state["qc_ann_dl"] = None
+                st.session_state["qc_scene_text"] = r2.text.strip()
+                st.session_state["qc_data"] = None
+                st.session_state["qc_show_qc_extras"] = False
+                st.session_state["qc_show_gauge_extras"] = False
             else:
                 st.error(f"JSON parse error: {e}")
                 st.code(r2.text)
@@ -1302,3 +1215,84 @@ if run and image:
 
 elif run and not image:
     st.warning("Please upload or select an image first.")
+
+with annotated_col:
+    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        ann = st.session_state.get("qc_ann_image")
+        if ann is not None:
+            st.image(ann, use_container_width=True)
+            dl = st.session_state.get("qc_ann_dl")
+            if dl:
+                st.download_button(
+                    "⬇ Download Annotated PNG",
+                    data=dl[0],
+                    file_name=dl[1],
+                    mime="image/png",
+                )
+        else:
+            st.info("Run an inspection to see the annotated image here.")
+
+with cards_col:
+    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        scene_text = st.session_state.get("qc_scene_text")
+        result_error = st.session_state.get("qc_result_error")
+        data = st.session_state.get("qc_data")
+        result_mode = st.session_state.get("qc_mode")
+
+        if scene_text:
+            st.markdown(f'<div class="scene-summary">🤖 {scene_text}</div>', unsafe_allow_html=True)
+        elif result_error:
+            st.warning("Could not parse JSON from model response. Showing raw output.")
+            st.code(result_error)
+        elif isinstance(data, dict):
+            if result_mode == "Electric Grid Analysis":
+                try:
+                    render_electric_grid_data(data)
+                except Exception:
+                    st.warning("Could not render transformer monitoring data.")
+            elif data.get("gauges") is not None:
+                gauges = data.get("gauges") or []
+                if gauges:
+                    render_gauge_cards(gauges)
+                else:
+                    st.info("No gauges detected in the response.")
+            else:
+                defects = data.get("defects", [])
+                if defects:
+                    render_cards(defects)
+                else:
+                    st.markdown(
+                        """<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
+                        padding:16px;text-align:center;color:#15803d;font-weight:600;">
+                        ✅ No defects detected</div>""",
+                        unsafe_allow_html=True,
+                    )
+        else:
+            st.info("Run an inspection to see result cards here.")
+
+if st.session_state.get("qc_show_qc_extras") and isinstance(st.session_state.get("qc_data"), dict):
+    with st.expander("Inspection summary & agent reasoning", expanded=False):
+        _render_qc_extras(
+            st.session_state["qc_data"],
+            st.session_state.get("qc_steps") or [],
+            st.session_state.get("qc_mode", mode_key),
+        )
+
+if st.session_state.get("qc_show_gauge_extras") and isinstance(st.session_state.get("qc_data"), dict):
+    with st.expander("Inspection summary & details", expanded=False):
+        parsed = st.session_state["qc_data"]
+        summary = parsed.get("scene_summary", "")
+        if summary:
+            st.markdown(f'<div class="scene-summary">🤖 {summary}</div>', unsafe_allow_html=True)
+        render_gauge_stats(parsed)
+        st.markdown("**Full JSON**")
+        st.code(json.dumps(parsed, indent=2, ensure_ascii=False), language="json")
+        raw_text = st.session_state.get("qc_gauge_raw", "")
+        if raw_text:
+            st.text_area("Raw response", value=raw_text, height=300)
+
+if st.session_state.get("qc_gauge_raw") and st.session_state.get("qc_show_gauge_extras") is False and st.session_state.get("qc_scene_text"):
+    with st.expander("Raw model output", expanded=False):
+        st.code(st.session_state["qc_gauge_raw"])
