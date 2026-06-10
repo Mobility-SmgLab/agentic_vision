@@ -790,6 +790,8 @@ def _render_qc_extras(data: Dict, steps: List, mode_key: str) -> None:
 def render_reasoning(steps):
     html = '<div class="trace-wrap"><div class="trace-hdr">🧠 &nbsp;Agent Reasoning Trace</div>'
     for i, s in enumerate(steps):
+        if not isinstance(s, dict):
+            s = {"title": f"Step {i + 1}", "content": str(s), "tags": []}
         body = s.get("content", "").replace("<", "&lt;").replace(">", "&gt;")
         tags = "".join(f'<span class="trace-tag">{t}</span>' for t in s.get("tags", []))
         conf = s.get("confidence", None)
@@ -1146,7 +1148,17 @@ if run and image:
             if rt.startswith("```"):
                 rt = rt.split("```")[1]
                 rt = rt[4:] if rt.startswith("json") else rt
-            steps = json.loads(rt.strip())
+            raw_steps = json.loads(rt.strip())
+            if isinstance(raw_steps, list):
+                steps = [
+                    s if isinstance(s, dict)
+                    else {"title": f"Step {i + 1}", "content": str(s), "tags": []}
+                    for i, s in enumerate(raw_steps)
+                ]
+            elif isinstance(raw_steps, dict):
+                steps = [raw_steps]
+            else:
+                steps = [{"title": "RAW ANALYSIS", "content": str(raw_steps), "tags": []}]
         except Exception:
             steps = [{"title": "RAW ANALYSIS", "content": r1.text, "tags": []}]
 
