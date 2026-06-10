@@ -659,7 +659,7 @@ Return ONLY valid JSON:
 DEFAULT_QC_MODEL_ID = "gemini-3-flash-preview"
 PREVIEW_QC_MODEL_ID = "gemini-3-flash-preview"
 QC_MODEL_ID = os.environ.get("QC_MODEL_ID", DEFAULT_QC_MODEL_ID).strip() or DEFAULT_QC_MODEL_ID
-ELECTRIC_GRID_MODEL_ID = "gemini-robotics-er-1.5-preview"
+ELECTRIC_GRID_MODEL_ID = "gemini-robotics-er-1.6-preview"
 
 SEV_COLORS = {
     "CRITICAL": ("#dc2626", (220, 38, 38)),
