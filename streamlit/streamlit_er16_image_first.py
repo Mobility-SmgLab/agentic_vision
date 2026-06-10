@@ -15,7 +15,6 @@ from pathlib import Path
 import os
 from typing import Any, Dict, List, Optional, Tuple
 
-import requests
 import streamlit as st
 from dotenv import load_dotenv
 from google import genai
@@ -443,13 +442,6 @@ def _load_gallery_images(images_dir: Path) -> List[Path]:
     return sorted(set(out))
 
 
-def _fetch_live_frame(api_base: str, timeout_sec: float) -> bytes:
-    url = api_base.rstrip("/") + "/frame/latest.jpg"
-    resp = requests.get(url, timeout=timeout_sec)
-    resp.raise_for_status()
-    return resp.content
-
-
 def _inject_app_styles() -> None:
     st.markdown(
         """
@@ -770,27 +762,15 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
             step=0.05,
             key=f"{key_prefix}temperature",
         )
-        st.subheader("Live Capture Source")
-        live_api_base = st.text_input(
-            "Go2 capture API URL",
-            value="http://127.0.0.1:8091",
-            key=f"{key_prefix}live_api_base",
-        )
-        live_timeout = st.slider(
-            "Live fetch timeout (sec)",
-            min_value=1.0,
-            max_value=15.0,
-            value=5.0,
-            step=0.5,
-            key=f"{key_prefix}live_timeout",
-        )
+        st.subheader("Camera Capture")
+        st.caption("Use your attached system camera to capture a live frame directly in the browser.")
 
     if prompt_key not in st.session_state:
         st.session_state[prompt_key] = DEFAULT_PROMPT_GAUGE_JSON
 
-    # Layout: Input (left) + Result (right)
+    # Layout: Input (left) + Annotated (middle) + Result (right)
     # Wider panes so images render larger and use whitespace better.
-    left, right = st.columns([1.25, 1.35], gap="large")
+    left, annotated_col, right = st.columns([1.25, 1.25, 1.0], gap="large")
 
     # Session keys for persistence across reruns
     k_last_input = f"{key_prefix}last_input_bytes"
@@ -806,7 +786,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
         with st.container(border=True):
             source = st.radio(
                 "Select source",
-                options=["Gallery", "Upload", "Live Capture"],
+                options=["Gallery", "Upload", "Camera"],
                 horizontal=True,
                 key=f"{key_prefix}source",
             )
@@ -815,7 +795,17 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
             image_bytes = None  # type: Optional[bytes]
             mime = "image/jpeg"
 
-            if source == "Gallery":
+            if source == "Camera":
+                camera_input = st.camera_input("Capture from attached camera", key=f"{key_prefix}camera_image")
+                if camera_input is not None:
+                    image_bytes = camera_input.read()
+                    selected_name = "camera_capture.jpg"
+                    mime = camera_input.type or "image/jpeg"
+                    st.image(image_bytes, caption="Captured camera image", width=700)
+                else:
+                    st.info("Allow browser camera access and snap a frame to continue.")
+
+            elif source == "Gallery":
                 if not gallery_images:
                     st.warning("No sample images found in `google_robotics_agentic/static`.")
                 else:
@@ -825,7 +815,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                     image_bytes = chosen.read_bytes()
                     selected_name = chosen.name
                     mime = "image/png" if chosen.suffix.lower() == ".png" else "image/jpeg"
-                    st.image(image_bytes, caption="Selected gallery image", width=700)
+                    st.image(image_bytes, caption="Selected gallery image", width=550)
 
             elif source == "Upload":
                 up = st.file_uploader(
@@ -839,39 +829,9 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                     mime = up.type or "image/jpeg"
                     st.image(image_bytes, caption="Uploaded image", width=700)
 
-            else:
-                c1, c2 = st.columns([1, 2])
-                with c1:
-                    fetch_live = st.button(
-                        "Fetch Live Frame",
-                        type="primary",
-                        key=f"{key_prefix}fetch_live",
-                    )
-                with c2:
-                    health_clicked = st.button(
-                        "Check Capture API",
-                        key=f"{key_prefix}health",
-                    )
-
-                if health_clicked:
-                    try:
-                        r = requests.get(live_api_base.rstrip("/") + "/health", timeout=live_timeout)
-                        r.raise_for_status()
-                        st.success("Capture API OK: %s" % r.json())
-                    except Exception as e:
-                        st.error("Capture API check failed: %s" % (e,))
-
-                if fetch_live:
-                    try:
-                        image_bytes = _fetch_live_frame(live_api_base, timeout_sec=live_timeout)
-                        selected_name = "live_capture.jpg"
-                        mime = "image/jpeg"
-                        st.image(image_bytes, caption="Live frame from Go2 API", width=700)
-                    except Exception as e:
-                        st.error("Live frame fetch failed: %s" % (e,))
+            # Camera source is handled above; no live capture API is used.
 
         with st.expander("Prompts (defaults: booth / zoom demo — click to expand)", expanded=False):
-            st.caption("Edit only if you need a custom task; defaults are tuned for Go2 gauge reading with code execution.")
             colp1, colp2 = st.columns([1, 1])
             with colp1:
                 if st.button("Use Gauge JSON Prompt", key=f"{key_prefix}use_gauge_prompt"):
@@ -887,7 +847,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                 help="Default matches booth demo: Go2 inspection + zoom/crop steps before JSON. Full-res image is sent to Gemini.",
             )
 
-        run = st.button("Run Gemini", type="primary", key=f"{key_prefix}run")
+        run = st.button("Run Inspection", key="run_btn")
         if run:
             if not image_bytes:
                 st.error("Select/upload/fetch an image first.")
@@ -941,14 +901,28 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                 st.session_state[k_last_overlay_err] = ""
                 if parsed is not None:
                     try:
-                        st.session_state[k_last_overlay] = render_labeled_image_with_role(
-                            image_bytes,
-                            parsed,
-                            scale=annotation_scale,
-                        )
+                            st.session_state[k_last_overlay] = render_labeled_image_with_role(
+                                image_bytes,
+                                parsed,
+                                scale=annotation_scale,
+                            )
                     except Exception as e:
                         st.session_state[k_last_overlay] = None
                         st.session_state[k_last_overlay_err] = str(e)
+
+    with annotated_col:
+        st.markdown('<p class="section-label">Annotated Output</p>', unsafe_allow_html=True)
+        with st.container(border=True):
+            last_overlay = st.session_state.get(k_last_overlay)
+            last_overlay_err = st.session_state.get(k_last_overlay_err, "")
+            last_name = st.session_state.get(k_last_name, "input")
+            if last_overlay:
+                st.image(last_overlay, caption="Annotated overlay", use_column_width=True)
+                st.download_button("Download annotated PNG", last_overlay, file_name=f"annotated-{last_name}.png", mime="image/png")
+            elif last_overlay_err:
+                st.error(f"Overlay error: {last_overlay_err}")
+            else:
+                st.info("Annotated result will appear here after running inference.")
 
     with right:
         st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)

@@ -58,6 +58,10 @@ footer{display:none!important;}
   letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;
   display:flex;align-items:center;gap:10px;}
 .sec-head::after{content:'';flex:1;height:1px;background:var(--border);}
+.section-label {font-size:0.78rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#64748b;margin:0.35rem 0 0.55rem 0;padding-left:0.55rem;border-left:3px solid rgba(99,102,241,0.55);}
+[data-theme="light"] .section-label {color:#475569;border-left-color:rgba(79,70,229,0.45);}
+[data-testid="stAppViewContainer"] .main [data-testid="stVerticalBlockBorderWrapper"] {border-radius:16px !important;padding:0.4rem 0.65rem 0.85rem 0.65rem !important;border-color:rgba(99,102,241,0.22) !important;background:linear-gradient(165deg,rgba(248,250,252,0.95)0%,rgba(255,255,255,0.98)55%,rgba(241,245,249,0.55)100%);box-shadow:0 1px 0 rgba(255,255,255,0.8) inset,0 10px 28px rgba(15,23,42,0.06);}
+[data-theme="dark"] [data-testid="stAppViewContainer"] .main [data-testid="stVerticalBlockBorderWrapper"] {background:linear-gradient(165deg,rgba(30,41,59,0.55)0%,rgba(15,23,42,0.72)100%);border-color:rgba(129,140,248,0.28) !important;box-shadow:0 12px 32px rgba(0,0,0,0.35);}
 
 .mode-card{background:var(--card);border:1.5px solid var(--border);border-radius:10px;
   padding:16px 14px;transition:all .18s ease;position:relative;overflow:hidden;}
@@ -155,6 +159,81 @@ div[data-testid="stTextInput"] input{background:var(--card)!important;border:1.5
 div[data-testid="stExpander"]{background:var(--card)!important;border:1.5px solid var(--border)!important;border-radius:10px!important;}
 </style>
 """, unsafe_allow_html=True)
+
+
+# Additional ER1.6 styles for parity (hero, cards, form polish, primary buttons, badges)
+st.markdown(
+        """
+<style>
+/* Fixed hero + sticky title helpers */
+.hero-sticky-wrap {
+    position: flexible;
+    top: calc(var(--er16-streamlit-header, 3.75rem) + var(--er16-hero-top-gap, 0.55rem));
+    left: 0.75rem; right: 0.75rem; width: auto; box-sizing: border-box;
+    min-height: var(--er16-hero-h, 4.35rem); margin: 0; padding: 0.95rem 1.25rem 1rem 1.25rem;
+    display: flex; align-items: center; justify-content: center; border-radius: 14px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.32);
+    background: lightblue;
+}
+.hero-fixed-spacer { height: calc(var(--er16-hero-h,4.35rem) + var(--er16-hero-top-gap,0.55rem) + 0.2rem); margin: 0 0 0.85rem 0; }
+
+/* Textareas & buttons polish */
+.stTextArea textarea { border-radius: 12px !important; border: 1px solid rgba(148, 163, 184, 0.45) !important; padding: 0.65rem 0.75rem !important; }
+[data-theme="dark"] .stTextArea textarea { border-color: rgba(71, 85, 105, 0.85) !important; }
+.stButton > button { border-radius: 12px !important; font-weight: 600 !important; }
+
+div[data-testid="stRadio"] > div { gap: 0.35rem 1rem; flex-wrap: wrap; padding: 0.15rem 0 0.05rem 0; }
+hr { margin: 1.15rem 0 !important; border: none !important; border-top: 1px solid rgba(148, 163, 184, 0.35) !important; }
+[data-theme="dark"] hr { border-top-color: rgba(71, 85, 105, 0.55) !important; }
+
+/* Bordered section panel polish (matches ER1.6) */
+[data-testid="stAppViewContainer"] .main [data-testid="stVerticalBlockBorderWrapper"] {
+    border-radius: 16px !important; padding: 0.4rem 0.65rem 0.85rem 0.65rem !important;
+    border-color: rgba(99, 102, 241, 0.22) !important;
+    background: linear-gradient(165deg, rgba(248, 250, 252, 0.95) 0%, rgba(255, 255, 255, 0.98) 55%, rgba(241, 245, 249, 0.55) 100%);
+    box-shadow: 0 1px 0 rgba(255,255,255,0.8) inset, 0 10px 28px rgba(15,23,42,0.06);
+}
+[data-theme="dark"] [data-testid="stAppViewContainer"] .main [data-testid="stVerticalBlockBorderWrapper"] {
+    background: linear-gradient(165deg, rgba(30,41,59,0.55) 0%, rgba(15,23,42,0.72) 100%);
+    border-color: rgba(129,140,248,0.28) !important; box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+}
+
+/* Primary action styling (teal gradient) */
+[data-testid="stAppViewContainer"] div[data-testid="stButton"] > button[kind="primary"],
+[data-testid="stAppViewContainer"] .stButton > button[kind="primary"],
+[data-testid="stAppViewContainer"] button[data-testid="baseButton-primary"] {
+    background-color: #0d9488 !important;
+    background-image: linear-gradient(90deg, #0f766e 0%, #0d9488 48%, #0891b2 100%) !important;
+    color: #f8fafc !important; border-color: transparent !important; border: none !important;
+    box-shadow: 0 6px 20px rgba(13,148,136,0.38) !important; transition: box-shadow 0.18s ease, filter 0.18s ease;
+}
+[data-testid="stAppViewContainer"] div[data-testid="stButton"] > button[kind="primary"]:hover,
+[data-testid="stAppViewContainer"] .stButton > button[kind="primary"]:hover,
+[data-testid="stAppViewContainer"] button[data-testid="baseButton-primary"]:hover {
+    background-color: #0f766e !important; background-image: linear-gradient(90deg, #115e59 0%, #0f766e 45%, #0d9488 100%) !important;
+    color: #ffffff !important; box-shadow: 0 8px 26px rgba(8,145,178,0.48) !important; filter: brightness(1.03);
+}
+
+/* Gauge/Electric result cards + badges (from ER1.6) */
+.gr-card { background: rgba(255,255,255,0.95); border: 1px solid rgba(148,163,184,0.55); border-radius: 14px; padding: 14px 16px; margin: 10px 0; box-shadow: 0 6px 22px rgba(15,23,42,0.06); }
+[data-theme="dark"] .gr-card { background: rgba(15,23,42,0.55); border-color: rgba(148,163,184,0.25); }
+.gr-id { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 11px; color: rgba(100,116,139,1); margin-bottom: 6px; }
+.gr-title { font-size: 14px; font-weight: 700; color: rgba(15,23,42,1); margin-bottom: 4px; }
+[data-theme="dark"] .gr-title { color: rgba(226,232,240,1); }
+.gr-sub { font-size: 12px; color: rgba(51,65,85,1); margin-bottom: 8px; }
+[data-theme="dark"] .gr-sub { color: rgba(203,213,225,1); }
+.gr-row { display:flex; gap:10px; align-items:flex-start; font-size:12px; color: rgba(71,85,105,1); margin: 4px 0; }
+[data-theme="dark"] .gr-row { color: rgba(148,163,184,1); }
+.gr-badges{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center;}
+.gr-badge{ display:inline-flex;align-items:center;gap:6px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:10px;font-weight:600; padding:4px 8px;border-radius:10px; border:1px solid rgba(148,163,184,0.35); background: rgba(241,245,249,0.8); color: rgba(15,23,42,0.9); }
+[data-theme="dark"] .gr-badge{ background: rgba(30,41,59,0.6); color: rgba(226,232,240,0.95); border-color: rgba(148,163,184,0.2); }
+.gr-badge-warn{ background: rgba(254,243,199,0.9); border-color: rgba(251,191,36,0.55); color: rgba(146,64,14,1); }
+.gr-badge-ok{ background: rgba(220,252,231,0.9); border-color: rgba(34,197,94,0.55); color: rgba(21,128,61,1); }
+.gr-badge-info{ background: rgba(219,234,254,0.9); border-color: rgba(59,130,246,0.55); color: rgba(30,64,175,1); }
+</style>
+""",
+        unsafe_allow_html=True,
+)
 
 
 # ── Env loading ────────────────────────────────────────────────────────────────
@@ -431,6 +510,10 @@ Focus on:
 - where the robot should move next to get a better reading
 
 Be concise but precise."""
+
+ELECTRIC_GRID_SCENE_PROMPT = """Describe this transformer monitoring dashboard in detail.
+Focus on visible equipment, digital and analog readouts, indicator lamps, status information, and any anomalies or concerns.
+Do not return JSON. Provide a concise, informative scene description for inspection purposes."""
 
 MODES = {
     "Electric Grid Analysis": {
@@ -805,37 +888,29 @@ with st.sidebar:
     st.caption("- Gauge Reader: `gemini-robotics-er-1.5-preview`")
     st.caption(f"- PCB/Label: `{QC_MODEL_ID}` (override with QC_MODEL_ID env var)")
 
-    st.markdown("---")
-    st.markdown("### 🔭 Gauge Reader Settings")
-    use_thinking = st.checkbox("Enable thinking config (ER1.6)", value=True,
-                               help="Passes thinking_budget to the model for deeper gauge analysis.")
-    thinking_budget = st.slider("Thinking budget", 0, 24576, 8192, 256, disabled=not use_thinking)
-    temperature_gauge = st.slider("Temperature (Gauge)", 0.0, 1.0, 0.3, 0.05)
-    gauge_prompt_mode = st.radio("Use Gauge JSON Prompt",
-                                 ["Gauge JSON (structured)", "Scene Description (freeform)"],
-                                 help="JSON mode returns parseable gauge readings with bboxes. Scene mode returns a freeform inspection description.")
+    selected_mode = st.session_state.get("mode", "Electric Grid Analysis")
 
-    st.markdown("---")
-    st.markdown("### ⚡ Electric Grid Analysis Settings")
-    grid_prompt_mode = st.radio("Use Electric Grid JSON Prompt",
-                                ["Transformer JSON (structured)", "Scene Description (freeform)"],
-                                help="JSON mode returns transformer monitoring data with digital readouts, gauges, and status indicators. Scene mode returns a freeform inspection description.")
-    temperature_grid = st.slider("Temperature (Grid)", 0.0, 1.0, 0.3, 0.05)
-
-    st.subheader("Live Capture Source")
-    live_api_base = st.text_input(
-        "Live capture API URL",
-        value="http://127.0.0.1:8091",
-        key="qc_live_api_base",
-    )
-    live_timeout = st.slider(
-        "Live fetch timeout (sec)",
-        min_value=1.0,
-        max_value=15.0,
-        value=5.0,
-        step=0.5,
-        key="qc_live_timeout",
-    )
+    if selected_mode == "Gauge Reader":
+        st.markdown("---")
+        st.markdown("### 🔭 Gauge Reader Settings")
+        use_thinking = st.checkbox("Enable thinking config (ER1.6)", value=True,
+                                   help="Passes thinking_budget to the model for deeper gauge analysis.")
+        thinking_budget = st.slider("Thinking budget", 0, 24576, 8192, 256, disabled=not use_thinking)
+        temperature_gauge = st.slider("Temperature (Gauge)", 0.0, 1.0, 0.3, 0.05)
+        gauge_prompt_mode = st.radio("Use Gauge JSON Prompt",
+                                     ["Gauge JSON (structured)", "Scene Description (freeform)"],
+                                     help="JSON mode returns parseable gauge readings with bboxes. Scene mode returns a freeform inspection description.")
+    elif selected_mode == "Electric Grid Analysis":
+        st.markdown("---")
+        st.markdown("### ⚡ Electric Grid Analysis Settings")
+        grid_prompt_mode = st.radio("Use Electric Grid JSON Prompt",
+                                    ["Transformer JSON (structured)", "Scene Description (freeform)"],
+                                    help="JSON mode returns transformer monitoring data with digital readouts, gauges, and status indicators. Scene mode returns a freeform inspection description.")
+        temperature_grid = st.slider("Temperature (Grid)", 0.0, 1.0, 0.3, 0.05)
+    else:
+        st.markdown("---")
+        st.markdown("### Mode-specific settings")
+        st.caption("Select Electric Grid Analysis or Gauge Reader to see more options.")
 
     st.markdown("---")
     if st.button("List Available Models"):
@@ -910,10 +985,9 @@ if mode_key == "Gauge Reader":
 
 
 # ── Image input section (PCB / Label modes) ────────────────────────────────────
-st.markdown(f'<div class="sec-head">{mode_cfg["icon"]} {mode_cfg["title"]} — Image Input</div>',
-            unsafe_allow_html=True)
 
-left_col, right_col = st.columns([2, 2])
+
+input_col, annotated_col, cards_col = st.columns([2, 2, 2])
 
 # Collect sample images from the streamlit/static folder only
 img_root = Path(__file__).resolve().parent
@@ -927,20 +1001,21 @@ def _collect_images_from_static(root: Path) -> List[str]:
     return imgs
 
 
-def _fetch_live_frame(api_base: str, timeout_sec: float) -> bytes:
-    url = api_base.rstrip("/") + "/frame/latest.jpg"
-    resp = requests.get(url, timeout=timeout_sec)
-    resp.raise_for_status()
-    return resp.content
-
 sample_images = _collect_images_from_static(img_root)
 
-with left_col:
+with input_col:
     st.markdown('<p class="section-label">Image input</p>', unsafe_allow_html=True)
     with st.container(border=True):
+        source_options = ["Gallery", "Upload"]
+        if mode_key == "Electric Grid Analysis":
+            source_options.append("Camera")
+
+        if st.session_state.get("qc_source") not in source_options:
+            st.session_state["qc_source"] = source_options[0]
+
         source = st.radio(
             "Select source",
-            options=["Gallery", "Upload", "Live Capture"],
+            options=source_options,
             horizontal=True,
             key="qc_source",
         )
@@ -963,7 +1038,7 @@ with left_col:
                     uploaded_name = sel_path.name
                     image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
                     mime = "image/png" if sel_path.suffix.lower() == ".png" else "image/jpeg"
-                    st.image(image, caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px", width=700)
+                    st.image(image, caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px", width=550)
                 else:
                     st.warning(f"Sample image not found on disk: `{sel_path}`")
 
@@ -980,39 +1055,53 @@ with left_col:
                 mime = up.type or "image/jpeg"
                 st.image(image, caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px", width=700)
 
-        else:
-            c1, c2 = st.columns([1, 2])
-            with c1:
-                fetch_live = st.button("Fetch Live Frame", type="primary", key="qc_fetch_live")
-            with c2:
-                health_clicked = st.button("Check Capture API", key="qc_check_health")
+        elif source == "Camera":
+            camera = st.camera_input("Take a picture", key="qc_camera_image")
+            if camera is not None:
+                img_bytes = camera.read()
+                uploaded_name = "camera.jpg"
+                image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
+                mime = "image/jpeg"
 
-            if health_clicked:
-                try:
-                    r = requests.get(live_api_base.rstrip("/") + "/health", timeout=live_timeout)
-                    r.raise_for_status()
-                    st.success("Capture API OK: %s" % r.json())
-                except Exception as e:
-                    st.error("Capture API check failed: %s" % (e,))
+             # Electric Grid: prompt editor (same UX as Gauge Reader)
+        if mode_key == "Electric Grid Analysis":
+            grid_prompt_key = "grid_prompt_text"
+            if grid_prompt_key not in st.session_state:
+                st.session_state[grid_prompt_key] = mode_cfg.get("prompt", "")
+            with st.expander("Prompts (defaults: transformer / scene demo — click to expand)", expanded=False):
+                
+                colp1, colp2 = st.columns([1, 1])
+                with colp1:
+                    if st.button("Use Transformer JSON Prompt", key="use_grid_json"):
+                        st.session_state[grid_prompt_key] = mode_cfg.get("prompt", "")
+                with colp2:
+                    if st.button("Use Scene Prompt", key="use_grid_scene"):
+                        st.session_state[grid_prompt_key] = ELECTRIC_GRID_SCENE_PROMPT
 
-            if fetch_live:
-                try:
-                    img_bytes = _fetch_live_frame(live_api_base, timeout_sec=live_timeout)
-                    uploaded_name = "live_capture.jpg"
-                    mime = "image/jpeg"
-                    image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-                    st.image(image, caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px", width=700)
-                except Exception as e:
-                    st.error("Live frame fetch failed: %s" % (e,))
+                prompt = st.text_area(
+                    "User prompt (editable)",
+                    value=st.session_state[grid_prompt_key],
+                    key=grid_prompt_key,
+                    height=240,
+                    help="Default tuned for transformer monitoring: JSON output with digital readouts, gauges, and indicators.",
+                )
 
         st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
         run = st.button("▶ Run Inspection", key="run_btn")
 
-with right_col:
-    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+       
+
+with annotated_col:
+    st.markdown('<p class="section-label">Annotated Output</p>', unsafe_allow_html=True)
     with st.container(border=True):
         if not run:
             st.info("Run an inspection to see results here.")
+
+with cards_col:
+    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+    with st.container(border=True):
+        # Results / cards will be populated after running an inspection
+        pass
 
 st.markdown("---")
 
@@ -1128,9 +1217,21 @@ if run and image:
 
         with st.spinner("🔍 Phase 2 — Defect detection & bounding boxes…"):
             try:
+                # Determine active prompt: prefer user-edited grid prompt when present
+                if mode_key == "Electric Grid Analysis":
+                    grid_prompt_key = "grid_prompt_text"
+                    active_prompt = st.session_state.get(grid_prompt_key, mode_cfg.get("prompt"))
+                    # If the sidebar radio requested Scene mode and user didn't override, use scene prompt
+                    if "grid_prompt_mode" in st.session_state and "Scene" in st.session_state.get("grid_prompt_mode"):
+                        # Only switch to scene default if user prompt equals the original default
+                        if not active_prompt or active_prompt == mode_cfg.get("prompt"):
+                            active_prompt = ELECTRIC_GRID_SCENE_PROMPT
+                else:
+                    active_prompt = mode_cfg["prompt"]
+
                 r2 = _generate_content_with_fallback(
                     client,
-                    [types.Part.from_bytes(data=img_bytes, mime_type=mime), mode_cfg["prompt"]],
+                    [types.Part.from_bytes(data=img_bytes, mime_type=mime), active_prompt],
                     types.GenerateContentConfig(temperature=0.1),
                     inspection_model_id,
                 )
@@ -1145,15 +1246,21 @@ if run and image:
             data = json.loads(raw.strip())
 
             try:
-                with right_col:
+                # Annotated image in middle column
+                with annotated_col:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
-                    st.image(draw_qc_annotations(image, data), width=700)
-                    
+                    annotated = draw_qc_annotations(image, data)
+                    st.image(annotated, width=700)
+                    buf = io.BytesIO()
+                    annotated.save(buf, format="PNG")
+                    st.download_button("⬇ Download Annotated PNG", data=buf.getvalue(), file_name="annotated.png", mime="image/png")
+
+                # Cards / textual results in rightmost column
+                with cards_col:
                     if mode_key == "Electric Grid Analysis":
                         st.markdown('<div class="sec-head">⚡ Transformer Monitoring Data</div>', unsafe_allow_html=True)
                         render_electric_grid_data(data)
                     else:
-                        # PCB / Label rendering
                         if "summary" in data:
                             st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
                             padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
@@ -1169,19 +1276,20 @@ if run and image:
                             render_cards(defects)
                         else:
                             st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
-                                padding:16px;text-align:center;color:#15803d;font-weight:600;">✅ No defects detected</div>""",
+                                padding:16px;text-align:center;color:#15803d;font-weight:600;'>✅ No defects detected</div>""",
                                         unsafe_allow_html=True)
 
-                    st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>',
-                                unsafe_allow_html=True)
+                    st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>', unsafe_allow_html=True)
                     with st.expander("🧠 View full reasoning trace", expanded=False):
                         render_reasoning(steps)
 
             except Exception:
-                with right_col:
+                # Best-effort fallback rendering
+                with annotated_col:
                     st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
                     st.image(draw_qc_annotations(image, data), width=700)
 
+                with cards_col:
                     if mode_key == "Electric Grid Analysis":
                         st.markdown('<div class="sec-head">⚡ Transformer Monitoring Data</div>', unsafe_allow_html=True)
                         try:
@@ -1189,7 +1297,6 @@ if run and image:
                         except Exception:
                             st.warning("Could not render transformer monitoring data.")
                     else:
-                        # PCB / Label rendering
                         if "summary" in data:
                             st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
                             padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
@@ -1205,16 +1312,24 @@ if run and image:
                             render_cards(defects)
                         else:
                             st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
-                                padding:16px;text-align:center;color:#15803d;font-weight:600;">✅ No defects detected</div>""",
-                                        unsafe_allow_html=True)
+                                padding:16px;text-align:center;color:#15803d;font-weight:600;'>✅ No defects detected</div>""",
+                                            unsafe_allow_html=True)
                 st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>',
                             unsafe_allow_html=True)
                 with st.expander("🧠 View full reasoning trace", expanded=False):
                     render_reasoning(steps)
 
         except json.JSONDecodeError as e:
-            st.error(f"JSON parse error: {e}")
-            st.code(r2.text)
+            if mode_key == "Electric Grid Analysis" and "Scene" in grid_prompt_mode:
+                with annotated_col:
+                    st.markdown('<div class="sec-head">Input Image</div>', unsafe_allow_html=True)
+                    st.image(image, width=700)
+                with cards_col:
+                    st.markdown('<div class="sec-head">Scene Description</div>', unsafe_allow_html=True)
+                    st.text_area("Scene description output", value=r2.text.strip(), height=320)
+            else:
+                st.error(f"JSON parse error: {e}")
+                st.code(r2.text)
         except Exception as e:
             st.error(f"Render error: {e}")
             st.code(r2.text)
