@@ -1299,8 +1299,6 @@ if st.session_state.get("qc_show_gauge_extras") and isinstance(st.session_state.
         if summary:
             st.markdown(f'<div class="scene-summary">🤖 {summary}</div>', unsafe_allow_html=True)
         render_gauge_stats(parsed)
-        st.markdown("**Full JSON**")
-        st.code(json.dumps(parsed, indent=2, ensure_ascii=False), language="json")
         raw_text = st.session_state.get("qc_gauge_raw", "")
         if raw_text:
             st.text_area("Raw response", value=raw_text, height=300)

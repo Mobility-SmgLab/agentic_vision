@@ -922,8 +922,6 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                 st.text_area("Structured JSON pass output", value=last_raw, height=220, key=f"{key_prefix}raw_text")
             elif last_raw:
                 st.text_area("Raw response", value=last_raw, height=360, key=f"{key_prefix}raw_text")
-            if isinstance(last_parsed, dict):
-                st.code(json.dumps(last_parsed, indent=2, ensure_ascii=False), language="json")
                 
 
 
