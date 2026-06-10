@@ -462,6 +462,10 @@ def render_gauge_stats(data: Dict):
 
 
 # ── Prompts / modes ────────────────────────────────────────────────────────────
+USE_GAUGE_THINKING = True
+GAUGE_THINKING_BUDGET = 8192
+GAUGE_TEMPERATURE = 0.3
+
 GAUGE_SYSTEM_INSTRUCTION = """You are the vision module on a Unitree Go2 quadruped doing facility inspection.
 Your job: locate every analog gauge or dial in the scene, read its value precisely, and return structured JSON.
 Use code execution to zoom/crop around each gauge face before reading — iterate until ticks and needle are legible.
@@ -1038,6 +1042,12 @@ st.markdown("---")
 
 
 # ── Execute ────────────────────────────────────────────────────────────────────
+use_thinking = USE_GAUGE_THINKING
+thinking_budget = GAUGE_THINKING_BUDGET
+temperature_gauge = GAUGE_TEMPERATURE
+gauge_prompt_mode = st.session_state.get("gauge_prompt_mode", "Gauge JSON")
+grid_prompt_mode = st.session_state.get("grid_prompt_mode", "Transformer JSON")
+
 if run and image:
     key2 = (os.environ.get("GEMINI_API_KEY_2") or "").strip()
     if not key2:
@@ -1251,7 +1261,7 @@ if run and image:
                     render_reasoning(steps)
 
         except json.JSONDecodeError as e:
-            if mode_key == "Electric Grid Analysis" and "Scene" in grid_prompt_mode:
+            if mode_key == "Electric Grid Analysis" and "Scene" in st.session_state.get("grid_prompt_mode", ""):
                 with annotated_col:
                     st.markdown('<div class="sec-head">Input Image</div>', unsafe_allow_html=True)
                     st.image(image, width=700)

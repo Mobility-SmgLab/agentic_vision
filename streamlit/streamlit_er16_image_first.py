@@ -37,6 +37,11 @@ Focus on:
 
 Be concise but precise."""
 
+DEFAULT_USE_THINKING = True
+DEFAULT_THINKING_BUDGET = 8192
+DEFAULT_TEMPERATURE = 0.3
+DEFAULT_ANNOTATION_SCALE = 1.0
+
 def _fmt_xy(pt: Any) -> str:
     if not isinstance(pt, list) or len(pt) != 2:
         return "—"
@@ -729,10 +734,10 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
     if prompt_key not in st.session_state:
         st.session_state[prompt_key] = DEFAULT_PROMPT_GAUGE_JSON
 
-    use_thinking = True
-    thinking_budget = 8192
-    temperature = 0.3
-    annotation_scale = 1.0
+    use_thinking = DEFAULT_USE_THINKING
+    thinking_budget = DEFAULT_THINKING_BUDGET
+    temperature = DEFAULT_TEMPERATURE
+    annotation_scale = DEFAULT_ANNOTATION_SCALE
 
     # Layout: Input (left) + Annotated (middle) + Result (right)
     # Wider panes so images render larger and use whitespace better.
