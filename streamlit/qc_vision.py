@@ -767,6 +767,26 @@ def render_cards(defects):
         </div></div>""", unsafe_allow_html=True)
 
 
+def _render_qc_extras(data: Dict, steps: List, mode_key: str) -> None:
+    """Verdict, stats, summary, and reasoning — shown below the 3-column layout."""
+    if mode_key != "Electric Grid Analysis":
+        if "summary" in data:
+            st.markdown(
+                f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
+                padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
+                📋 {data['summary']}</div>""",
+                unsafe_allow_html=True,
+            )
+        render_verdict(
+            data.get("verdict", "REVIEW"),
+            data.get("verdict_reason", "Done."),
+            data.get("overall_quality_score", 0),
+        )
+        render_stats(data.get("defects", []))
+    st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>', unsafe_allow_html=True)
+    render_reasoning(steps)
+
+
 def render_reasoning(steps):
     html = '<div class="trace-wrap"><div class="trace-hdr">🧠 &nbsp;Agent Reasoning Trace</div>'
     for i, s in enumerate(steps):
@@ -922,7 +942,7 @@ if mode_key == "Gauge Reader":
 # ── Image input section (PCB / Label modes) ────────────────────────────────────
 
 
-input_col, annotated_col, cards_col = st.columns([2, 2, 2])
+input_col, annotated_col, cards_col = st.columns([1.25, 1.25, 1.0], gap="large")
 
 # Collect sample images from the streamlit/static folder only
 img_root = Path(__file__).resolve().parent
@@ -1027,10 +1047,10 @@ with input_col:
        
 
 with annotated_col:
-    st.markdown('<p class="section-label">Annotated Output</p>', unsafe_allow_html=True)
+    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
     with st.container(border=True):
         if not run:
-            st.info("Run an inspection to see results here.")
+            st.info("Run an inspection to see the annotated image here.")
 
 with cards_col:
     st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
@@ -1088,46 +1108,56 @@ if run and image:
                 st.stop()
 
         if "Scene" in gauge_prompt_mode:
-            st.markdown('<div class="sec-head">🔭 Scene Description</div>', unsafe_allow_html=True)
-            st.markdown(f'<div class="scene-summary">🤖 {raw_text}</div>', unsafe_allow_html=True)
+            with annotated_col:
+                st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.image(image, use_container_width=True)
+            with cards_col:
+                st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.markdown(f'<div class="scene-summary">🤖 {raw_text}</div>', unsafe_allow_html=True)
             with st.expander("Raw model output", expanded=False):
                 st.code(raw_text)
         else:
             parsed = _extract_first_json_object(raw_text)
 
             if parsed is None:
-                st.warning("Could not parse JSON from model response. Showing raw output.")
-                st.code(raw_text)
+                with cards_col:
+                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        st.warning("Could not parse JSON from model response. Showing raw output.")
+                        st.code(raw_text)
             else:
-                summary = parsed.get("scene_summary", "")
-                if summary:
-                    st.markdown(f'<div class="scene-summary">🤖 {summary}</div>', unsafe_allow_html=True)
+                with annotated_col:
+                    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        annotated = draw_gauge_annotations(image, parsed)
+                        st.image(annotated, use_container_width=True)
+                        buf = io.BytesIO()
+                        annotated.save(buf, format="PNG")
+                        st.download_button(
+                            "⬇ Download Annotated PNG",
+                            data=buf.getvalue(),
+                            file_name="gauge_annotated.png",
+                            mime="image/png",
+                        )
 
-                render_gauge_stats(parsed)
+                with cards_col:
+                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        gauges = parsed.get("gauges") or []
+                        if gauges:
+                            render_gauge_cards(gauges)
+                        else:
+                            st.info("No gauges detected in the response.")
 
-                ic, cc = st.columns([3, 2])
-                with ic:
-                    st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
-                    annotated = draw_gauge_annotations(image, parsed)
-                    st.image(annotated, width=700)
-
-                    buf = io.BytesIO()
-                    annotated.save(buf, format="PNG")
-                    st.download_button("⬇ Download Annotated PNG", data=buf.getvalue(),
-                                       file_name="gauge_annotated.png", mime="image/png")
-
-                with cc:
-                    st.markdown('<div class="sec-head">Gauge Readings</div>', unsafe_allow_html=True)
-                    gauges = parsed.get("gauges") or []
-                    if gauges:
-                        render_gauge_cards(gauges)
-                    else:
-                        st.info("No gauges detected in the response.")
-
-                    with st.expander("📋 Full JSON output", expanded=False):
-                        st.code(json.dumps(parsed, indent=2, ensure_ascii=False), language="json")
-
-                with st.expander("🧠 Raw model text (includes code execution trace)", expanded=False):
+                with st.expander("Inspection summary & details", expanded=False):
+                    summary = parsed.get("scene_summary", "")
+                    if summary:
+                        st.markdown(f'<div class="scene-summary">🤖 {summary}</div>', unsafe_allow_html=True)
+                    render_gauge_stats(parsed)
+                    st.markdown("**Full JSON**")
+                    st.code(json.dumps(parsed, indent=2, ensure_ascii=False), language="json")
                     st.text_area("Raw response", value=raw_text, height=300)
 
     # ── Standard QC path (PCB, Label, etc.) ───────────────────────────────────
@@ -1187,87 +1217,82 @@ if run and image:
             data = json.loads(raw.strip())
 
             try:
-                # Annotated image in middle column
                 with annotated_col:
-                    st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
-                    annotated = draw_qc_annotations(image, data)
-                    st.image(annotated, width=700)
-                    buf = io.BytesIO()
-                    annotated.save(buf, format="PNG")
-                    st.download_button("⬇ Download Annotated PNG", data=buf.getvalue(), file_name="annotated.png", mime="image/png")
+                    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        annotated = draw_qc_annotations(image, data)
+                        st.image(annotated, use_container_width=True)
+                        buf = io.BytesIO()
+                        annotated.save(buf, format="PNG")
+                        st.download_button(
+                            "⬇ Download Annotated PNG",
+                            data=buf.getvalue(),
+                            file_name="annotated.png",
+                            mime="image/png",
+                        )
 
-                # Cards / textual results in rightmost column
                 with cards_col:
-                    if mode_key == "Electric Grid Analysis":
-                        st.markdown('<div class="sec-head">⚡ Transformer Monitoring Data</div>', unsafe_allow_html=True)
-                        render_electric_grid_data(data)
-                    else:
-                        if "summary" in data:
-                            st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
-                            padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
-                            📋 {data['summary']}</div>""", unsafe_allow_html=True)
-
-                        render_verdict(data.get("verdict", "REVIEW"), data.get("verdict_reason", "Done."),
-                                       data.get("overall_quality_score", 0))
-                        render_stats(data.get("defects", []))
-
-                        st.markdown('<div class="sec-head">Defect Report</div>', unsafe_allow_html=True)
-                        defects = data.get("defects", [])
-                        if defects:
-                            render_cards(defects)
+                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        if mode_key == "Electric Grid Analysis":
+                            render_electric_grid_data(data)
                         else:
-                            st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
-                                padding:16px;text-align:center;color:#15803d;font-weight:600;'>✅ No defects detected</div>""",
-                                        unsafe_allow_html=True)
+                            defects = data.get("defects", [])
+                            if defects:
+                                render_cards(defects)
+                            else:
+                                st.markdown(
+                                    """<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
+                                    padding:16px;text-align:center;color:#15803d;font-weight:600;">
+                                    ✅ No defects detected</div>""",
+                                    unsafe_allow_html=True,
+                                )
 
-                    st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>', unsafe_allow_html=True)
-                    with st.expander("🧠 View full reasoning trace", expanded=False):
-                        render_reasoning(steps)
+                with st.expander("Inspection summary & agent reasoning", expanded=False):
+                    _render_qc_extras(data, steps, mode_key)
 
             except Exception:
-                # Best-effort fallback rendering
                 with annotated_col:
-                    st.markdown('<div class="sec-head">Annotated Output</div>', unsafe_allow_html=True)
-                    st.image(draw_qc_annotations(image, data), width=700)
+                    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        st.image(draw_qc_annotations(image, data), use_container_width=True)
 
                 with cards_col:
-                    if mode_key == "Electric Grid Analysis":
-                        st.markdown('<div class="sec-head">⚡ Transformer Monitoring Data</div>', unsafe_allow_html=True)
-                        try:
-                            render_electric_grid_data(data)
-                        except Exception:
-                            st.warning("Could not render transformer monitoring data.")
-                    else:
-                        if "summary" in data:
-                            st.markdown(f"""<div style="background:#f9fafb;border:1.5px solid #e2e5ea;border-radius:10px;
-                            padding:12px 16px;margin-top:10px;font-size:12px;color:#4b5563;line-height:1.6;">
-                            📋 {data['summary']}</div>""", unsafe_allow_html=True)
-
-                        render_verdict(data.get("verdict", "REVIEW"), data.get("verdict_reason", "Done."),
-                                       data.get("overall_quality_score", 0))
-                        render_stats(data.get("defects", []))
-
-                        st.markdown('<div class="sec-head">Defect Report</div>', unsafe_allow_html=True)
-                        defects = data.get("defects", [])
-                        if defects:
-                            render_cards(defects)
+                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        if mode_key == "Electric Grid Analysis":
+                            try:
+                                render_electric_grid_data(data)
+                            except Exception:
+                                st.warning("Could not render transformer monitoring data.")
                         else:
-                            st.markdown("""<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
-                                padding:16px;text-align:center;color:#15803d;font-weight:600;'>✅ No defects detected</div>""",
-                                            unsafe_allow_html=True)
-                st.markdown('<div class="sec-head" style="margin-top:20px">Agent Reasoning</div>',
-                            unsafe_allow_html=True)
-                with st.expander("🧠 View full reasoning trace", expanded=False):
-                    render_reasoning(steps)
+                            defects = data.get("defects", [])
+                            if defects:
+                                render_cards(defects)
+                            else:
+                                st.markdown(
+                                    """<div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:10px;
+                                    padding:16px;text-align:center;color:#15803d;font-weight:600;">
+                                    ✅ No defects detected</div>""",
+                                    unsafe_allow_html=True,
+                                )
+
+                with st.expander("Inspection summary & agent reasoning", expanded=False):
+                    _render_qc_extras(data, steps, mode_key)
 
         except json.JSONDecodeError as e:
             if mode_key == "Electric Grid Analysis" and "Scene" in st.session_state.get("grid_prompt_mode", ""):
                 with annotated_col:
-                    st.markdown('<div class="sec-head">Input Image</div>', unsafe_allow_html=True)
-                    st.image(image, width=700)
+                    st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        st.image(image, use_container_width=True)
                 with cards_col:
-                    st.markdown('<div class="sec-head">Scene Description</div>', unsafe_allow_html=True)
-                    st.text_area("Scene description output", value=r2.text.strip(), height=320)
+                    st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
+                    with st.container(border=True):
+                        st.markdown(
+                            f'<div class="scene-summary">🤖 {r2.text.strip()}</div>',
+                            unsafe_allow_html=True,
+                        )
             else:
                 st.error(f"JSON parse error: {e}")
                 st.code(r2.text)

@@ -881,71 +881,49 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                         st.session_state[k_last_overlay] = None
                         st.session_state[k_last_overlay_err] = str(e)
 
+    last_overlay = st.session_state.get(k_last_overlay)
+    last_overlay_err = st.session_state.get(k_last_overlay_err, "")
+    last_name = st.session_state.get(k_last_name, "input")
+    last_input = st.session_state.get(k_last_input)
+    last_raw = st.session_state.get(k_last_raw, "")
+    last_raw_scene = st.session_state.get(k_last_raw_scene, "")
+    last_parsed = st.session_state.get(k_last_parsed)
+
     with annotated_col:
-        st.markdown('<p class="section-label">Annotated Output</p>', unsafe_allow_html=True)
+        st.markdown('<p class="section-label">Annotated Image</p>', unsafe_allow_html=True)
         with st.container(border=True):
-            last_overlay = st.session_state.get(k_last_overlay)
-            last_overlay_err = st.session_state.get(k_last_overlay_err, "")
-            last_name = st.session_state.get(k_last_name, "input")
             if last_overlay:
-                st.image(last_overlay, caption="Annotated overlay", use_column_width=True)
-                st.download_button("Download annotated PNG", last_overlay, file_name=f"annotated-{last_name}.png", mime="image/png")
+                st.image(last_overlay, caption="Annotated overlay", use_container_width=True)
+                st.download_button(
+                    "Download annotated PNG",
+                    last_overlay,
+                    file_name=f"annotated-{last_name}.png",
+                    mime="image/png",
+                )
             elif last_overlay_err:
                 st.error(f"Overlay error: {last_overlay_err}")
             else:
-                st.info("Annotated result will appear here after running inference.")
+                st.info("Annotated image will appear here after running inference.")
 
     with right:
         st.markdown('<p class="section-label">Result</p>', unsafe_allow_html=True)
         with st.container(border=True):
-            last_input = st.session_state.get(k_last_input)
-            last_name = st.session_state.get(k_last_name, "input")
-            last_overlay = st.session_state.get(k_last_overlay)
-            last_overlay_err = st.session_state.get(k_last_overlay_err, "")
-            last_raw = st.session_state.get(k_last_raw, "")
-            last_raw_scene = st.session_state.get(k_last_raw_scene, "")
-            last_parsed = st.session_state.get(k_last_parsed)
-
-            if last_input is None:
-                st.info("Run an inspection to see results here.")
+            if last_input is None or not isinstance(last_parsed, dict):
+                st.info("Run an inspection to see result cards here.")
             else:
-                tabs = ["Annotated Result"]
-                if last_raw:
-                    tabs.append("Raw Text")
-                t_out, *rest = st.tabs(tabs)
-                with t_out:
-                    if last_parsed is None or not last_overlay:
-                        st.warning("No annotated result available.")
-                        if last_overlay_err:
-                            st.error(f"Overlay render error: {last_overlay_err}")
-                    else:
-                        st.image(last_overlay, caption="Annotated result", width=700)
-                        st.download_button(
-                            "Download annotated PNG",
-                            data=last_overlay,
-                            file_name="annotated_with_role.png",
-                            mime="image/png",
-                            key=f"{key_prefix}download_annotated",
-                        )
-                if rest:
-                    with rest[0]:
-                        if last_raw_scene:
-                            st.text_area("Scene prompt output", value=last_raw_scene, height=180, key=f"{key_prefix}raw_scene_text")
-                            st.text_area("Structured JSON pass output", value=last_raw, height=220, key=f"{key_prefix}raw_text")
-                        else:
-                            st.text_area("Raw response", value=last_raw, height=360, key=f"{key_prefix}raw_text")
+                if last_raw_scene:
+                    render_scene_description_card(last_raw_scene, last_parsed)
+                render_gauge_results_cards(last_parsed)
 
-                if isinstance(last_parsed, dict):
-                    st.divider()
-                    if last_raw_scene:
-                        st.markdown('<p class="section-label">Scene Description</p>', unsafe_allow_html=True)
-                        render_scene_description_card(last_raw_scene, last_parsed)
-                        st.markdown('<p class="section-label">Structured Results</p>', unsafe_allow_html=True)
-                    else:
-                        st.markdown('<p class="section-label">Gauge Results</p>', unsafe_allow_html=True)
-                    render_gauge_results_cards(last_parsed)
-                    with st.expander("Full JSON", expanded=False):
-                        st.code(json.dumps(last_parsed, indent=2, ensure_ascii=False), language="json")
+    if last_input is not None and (last_raw or isinstance(last_parsed, dict)):
+        with st.expander("Raw model output & JSON", expanded=False):
+            if last_raw_scene:
+                st.text_area("Scene prompt output", value=last_raw_scene, height=180, key=f"{key_prefix}raw_scene_text")
+                st.text_area("Structured JSON pass output", value=last_raw, height=220, key=f"{key_prefix}raw_text")
+            elif last_raw:
+                st.text_area("Raw response", value=last_raw, height=360, key=f"{key_prefix}raw_text")
+            if isinstance(last_parsed, dict):
+                st.code(json.dumps(last_parsed, indent=2, ensure_ascii=False), language="json")
                 
 
 
