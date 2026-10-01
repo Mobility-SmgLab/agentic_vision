@@ -1015,8 +1015,6 @@ with input_col:
                         caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
                         width=550,
                     )
-                else:
-                    st.warning(f"Sample image not found on disk: `{sel_path}`")
 
         elif source == "Upload":
             up = st.file_uploader(
