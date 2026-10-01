@@ -657,9 +657,10 @@ Return ONLY valid JSON:
 }
 
 FIXED_IMAGES = {
-    "Electric Grid Analysis": "transformer.jpg",
-    "pcb": "pcb.jpg",
-    "label": "label.jpg",
+    "Electric Grid Analysis": "Electric Grid.png",
+    "pcb": "pcb_inspection1.jpg",
+    "label": "labels.jpg",
+    # "gauge reader" : "aircom1.jpeg", "dsm1.jpeg"
 }
 
 DEFAULT_QC_MODEL_ID = "gemini-3.8-flash"
