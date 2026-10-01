@@ -777,16 +777,34 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
                     st.info("Allow browser camera access and snap a frame to continue.")
 
             elif source == "Gallery":
-                if not gallery_images:
-                    st.warning("No sample images found in `google_robotics_agentic/static`.")
-                else:
-                    labels = [p.name for p in gallery_images]
-                    selected = st.selectbox("Sample image", labels, index=0, key=f"{key_prefix}sample_image")
-                    chosen = gallery_images[labels.index(selected)]
+                fixed_images = [
+                    Path(__file__).resolve().parent / "static" / "aircom1.jpeg",
+                    Path(__file__).resolve().parent / "static" / "dsm1.jpeg",
+                ]
+            
+                labels = [p.name for p in fixed_images]
+            
+                selected = st.selectbox(
+                    "Select gauge image",
+                    labels,
+                    index=0,
+                    key=f"{key_prefix}sample_image",
+                )
+            
+                chosen = fixed_images[labels.index(selected)]
+            
+                if chosen.exists():
                     image_bytes = chosen.read_bytes()
                     selected_name = chosen.name
                     mime = "image/png" if chosen.suffix.lower() == ".png" else "image/jpeg"
-                    st.image(image_bytes, caption="Selected gallery image", width=550)
+            
+                    st.image(
+                        image_bytes,
+                        caption=selected,
+                        width=550,
+                    )
+                else:
+                    st.error(f"Image not found: {chosen}")
 
             elif source == "Upload":
                 up = st.file_uploader(
