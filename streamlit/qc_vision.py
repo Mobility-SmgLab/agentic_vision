@@ -656,6 +656,12 @@ Return ONLY valid JSON:
     },
 }
 
+FIXED_IMAGES = {
+    "Electric Grid Analysis": "transformer.jpg",
+    "pcb": "pcb.jpg",
+    "label": "label.jpg",
+}
+
 DEFAULT_QC_MODEL_ID = "gemini-3.8-flash"
 PREVIEW_QC_MODEL_ID = "gemini-3.8-flash"
 QC_MODEL_ID = os.environ.get("QC_MODEL_ID", DEFAULT_QC_MODEL_ID).strip() or DEFAULT_QC_MODEL_ID
@@ -984,18 +990,31 @@ with input_col:
         mime = "image/jpeg"
 
         if source == "Gallery":
-            if not sample_images:
-                st.warning("No sample images found in `static/`. Add image files to static/ to use this app.")
+            fixed_name = FIXED_IMAGES.get(mode_key)
+        
+            if not fixed_name:
+                st.warning(f"No fixed image configured for `{mode_key}`.")
             else:
-                display_names = [Path(p).name for p in sample_images]
-                selected = st.selectbox("Sample image", display_names, index=0, key="qc_sample_image")
-                sel_path = Path(sample_images[display_names.index(selected)])
-                if sel_path.is_file():
-                    img_bytes = sel_path.read_bytes()
-                    uploaded_name = sel_path.name
+                fixed_path = img_root / "static" / fixed_name
+        
+                if not fixed_path.is_file():
+                    st.error(f"Fixed image not found: `static/{fixed_name}`")
+                else:
+                    img_bytes = fixed_path.read_bytes()
+                    uploaded_name = fixed_path.name
                     image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-                    mime = "image/png" if sel_path.suffix.lower() == ".png" else "image/jpeg"
-                    st.image(image, caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px", width=550)
+        
+                    mime = (
+                        "image/png"
+                        if fixed_path.suffix.lower() == ".png"
+                        else "image/jpeg"
+                    )
+        
+                    st.image(
+                        image,
+                        caption=f"{uploaded_name} — {image.size[0]}×{image.size[1]}px",
+                        width=550,
+                    )
                 else:
                     st.warning(f"Sample image not found on disk: `{sel_path}`")
 
