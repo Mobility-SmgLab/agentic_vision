@@ -779,7 +779,7 @@ def render_app(*, embedded: bool = False, api_key: Optional[str] = None) -> None
             elif source == "Gallery":
                 fixed_images = [
                     Path(__file__).resolve().parent / "static" / "aircom1.jpeg",
-                    Path(__file__).resolve().parent / "static" / "dsm1.jpeg",
+                    Path(__file__).resolve().parent / "static" / "dsm3.jpeg",
                 ]
             
                 labels = [p.name for p in fixed_images]
