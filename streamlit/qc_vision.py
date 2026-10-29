@@ -663,8 +663,8 @@ FIXED_IMAGES = {
     # "gauge reader" : "aircom1.jpeg", "dsm1.jpeg"
 }
 
-DEFAULT_QC_MODEL_ID = "gemini-3.8-flash"
-PREVIEW_QC_MODEL_ID = "gemini-3.8-flash"
+DEFAULT_QC_MODEL_ID = "gemini-3.6-flash"
+PREVIEW_QC_MODEL_ID = "gemini-3.6-flash"
 QC_MODEL_ID = os.environ.get("QC_MODEL_ID", DEFAULT_QC_MODEL_ID).strip() or DEFAULT_QC_MODEL_ID
 ELECTRIC_GRID_MODEL_ID = "gemini-robotics-er-2-preview"
 
