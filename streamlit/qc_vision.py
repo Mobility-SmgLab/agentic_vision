@@ -721,9 +721,10 @@ QC_MODEL_ID = (
 )
 
 FALLBACK_QC_MODEL_IDS = [
+    "gemini-3.8-flash",
     "gemini-2.5-flash",
     "gemini-2.5-pro",
-    "gemini-2.0-flash",
+    
 ]
 
 ELECTRIC_GRID_MODEL_ID = "gemini-robotics-er-2-preview"
