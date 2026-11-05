@@ -275,18 +275,63 @@ def _format_api_error(exc: Exception) -> str:
     return str(exc)
 
 
-def _generate_content_with_fallback(client, contents, config, model_id: str):
-    try:
-        return client.models.generate_content(model=model_id, contents=contents, config=config)
-    except Exception as exc:
-        if model_id != DEFAULT_QC_MODEL_ID:
-            try:
-                return client.models.generate_content(model=DEFAULT_QC_MODEL_ID, contents=contents, config=config)
-            except Exception as exc2:
-                raise RuntimeError(
-                    f"Model `{model_id}` failed and fallback `{DEFAULT_QC_MODEL_ID}` also failed: {str(exc2)}"
-                ) from exc2
-        raise
+# def _generate_content_with_fallback(client, contents, config, model_id: str):
+#     try:
+#         return client.models.generate_content(model=model_id, contents=contents, config=config)
+#     except Exception as exc:
+#         if model_id != DEFAULT_QC_MODEL_ID:
+#             try:
+#                 return client.models.generate_content(model=DEFAULT_QC_MODEL_ID, contents=contents, config=config)
+#             except Exception as exc2:
+#                 raise RuntimeError(
+#                     f"Model `{model_id}` failed and fallback `{DEFAULT_QC_MODEL_ID}` also failed: {str(exc2)}"
+#                 ) from exc2
+#         raise
+def _generate_content_with_fallback(
+    client,
+    contents,
+    config,
+    model_id: str,
+    fallback_model_ids: Optional[List[str]] = None,
+):
+    models = list(dict.fromkeys(
+        [model_id] + (fallback_model_ids or [])
+    ))
+
+    last_error = None
+
+    for index, current_model in enumerate(models):
+        try:
+            print(
+                f"Attempting model {index + 1}/{len(models)}: "
+                f"{current_model}"
+            )
+
+            response = client.models.generate_content(
+                model=current_model,
+                contents=contents,
+                config=config,
+            )
+
+            print(f"Successfully executed using: {current_model}")
+
+            return response
+
+        except Exception as exc:
+            last_error = exc
+
+            print(
+                f"Model {current_model} failed: "
+                f"{_format_api_error(exc)}"
+            )
+
+            if index < len(models) - 1:
+                print(f"Switching to {models[index + 1]}...")
+
+    raise RuntimeError(
+        f"All models failed: {models}. "
+        f"Last error: {_format_api_error(last_error)}"
+    ) from last_error
 
 
 def _mask_key(k: str) -> str:
@@ -663,10 +708,53 @@ FIXED_IMAGES = {
     # "gauge reader" : "aircom1.jpeg", "dsm1.jpeg"
 }
 
+# DEFAULT_QC_MODEL_ID = "gemini-3.6-flash"
+# PREVIEW_QC_MODEL_ID = "gemini-3.6-flash"
+# QC_MODEL_ID = os.environ.get("QC_MODEL_ID", DEFAULT_QC_MODEL_ID).strip() or DEFAULT_QC_MODEL_ID
+# ELECTRIC_GRID_MODEL_ID = "gemini-robotics-er-2-preview"
 DEFAULT_QC_MODEL_ID = "gemini-3.6-flash"
 PREVIEW_QC_MODEL_ID = "gemini-3.6-flash"
-QC_MODEL_ID = os.environ.get("QC_MODEL_ID", DEFAULT_QC_MODEL_ID).strip() or DEFAULT_QC_MODEL_ID
+
+QC_MODEL_ID = (
+    os.environ.get("QC_MODEL_ID", DEFAULT_QC_MODEL_ID).strip()
+    or DEFAULT_QC_MODEL_ID
+)
+
+FALLBACK_QC_MODEL_IDS = [
+    "gemini-2.5-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash",
+]
+
 ELECTRIC_GRID_MODEL_ID = "gemini-robotics-er-2-preview"
+
+def run_qc_with_fallback(prompt, **kwargs):
+
+    models = [QC_MODEL_ID] + FALLBACK_QC_MODEL_IDS
+
+    last_error = None
+
+    for model_id in models:
+        try:
+            print(f"Attempting QC with model: {model_id}")
+
+            response = client.models.generate_content(
+                model=model_id,
+                contents=prompt,
+                **kwargs
+            )
+
+            print(f"Successfully executed using: {model_id}")
+            return response
+
+        except Exception as e:
+            last_error = e
+            print(f"Model {model_id} failed: {e}")
+            print("Trying next fallback model...")
+
+    raise RuntimeError(
+        f"All QC models failed: {models}"
+    ) from last_error
 
 SEV_COLORS = {
     "CRITICAL": ("#dc2626", (220, 38, 38)),
@@ -1151,11 +1239,21 @@ if run and image:
         
         with st.spinner(f"🧠 Phase 1 — {mode_cfg['title']} reasoning trace…"):
             try:
+                fallback_models = (
+                    FALLBACK_ELECTRIC_GRID_MODEL_IDS
+                    if mode_key == "Electric Grid Analysis"
+                    else FALLBACK_QC_MODEL_IDS
+                )
+
                 r1 = _generate_content_with_fallback(
                     client,
-                    [types.Part.from_bytes(data=img_bytes, mime_type=mime), mode_cfg["reasoning"]],
+                    [
+                        types.Part.from_bytes(data=img_bytes, mime_type=mime),
+                        mode_cfg["reasoning"],
+                    ],
                     types.GenerateContentConfig(temperature=0.3),
                     inspection_model_id,
+                    fallback_models,
                 )
             except Exception as e:
                 st.error(f"Gemini API error (Phase 1): {_format_api_error(e)}")
@@ -1199,6 +1297,7 @@ if run and image:
                     [types.Part.from_bytes(data=img_bytes, mime_type=mime), active_prompt],
                     types.GenerateContentConfig(temperature=0.1),
                     inspection_model_id,
+                    fallback_models,
                 )
             except Exception as e:
                 st.error(f"Gemini API error (Phase 2): {_format_api_error(e)}")
