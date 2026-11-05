@@ -724,6 +724,7 @@ FALLBACK_QC_MODEL_IDS = [
     "gemini-3.8-flash",
     "gemini-2.5-flash",
     "gemini-2.5-pro",
+    "gemini-3.1-pro-preview",
     
 ]
 
